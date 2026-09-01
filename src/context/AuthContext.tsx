@@ -2,55 +2,166 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { User, UserRole } from "@/types";
-import { users } from "@/mocks/users";
 
 interface AuthContextValue {
   user: User | null;
-  loginAs: (role: UserRole) => void;
-  logout: () => void;
+  token: string | null;
   isLoading: boolean;
+  login: (email: string, senha: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  register: (
+    nome: string,
+    email: string,
+    senha: string,
+    role: "consumidor" | "empresa"
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  /** Atalho de desenvolvimento: loga com uma das contas de teste já semeadas no banco. */
+  loginAs: (role: UserRole) => Promise<{ ok: true } | { ok: false; error: string }>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const STORAGE_KEY = "buscazapp:user";
+const TOKEN_KEY = "buscazapp:token";
+const USER_KEY = "buscazapp:user";
+
+// Contas de teste criadas pelo prisma/seed.ts — senha padrão "123456" pra todas,
+// exceto a que veio do banco antigo (que mantém o hash original).
+const CONTAS_DEV: Record<UserRole, { email: string; senha: string }> = {
+  consumidor: { email: "maria.eduarda@email.com", senha: "123456" },
+  empresa: { email: "marcos@pizzariatitan.com.br", senha: "123456" },
+  admin: { email: "admin@buscazapp.com.br", senha: "123456" },
+};
+
+async function apiCall<T>(
+  path: string,
+  body: Record<string, unknown>
+): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(`/api${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.success) {
+      return { ok: false, error: json?.error?.message ?? "Não foi possível completar a operação." };
+    }
+    return { ok: true, data: json.data as T };
+  } catch {
+    return { ok: false, error: "Não foi possível conectar ao servidor. Tente novamente." };
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- carrega sessão persistida ao montar
-      if (raw) setUser(JSON.parse(raw));
-    } catch {
-      // ignora
+    let cancelled = false;
+
+    async function bootstrap() {
+      let storedToken: string | null = null;
+      let storedUser: User | null = null;
+      try {
+        storedToken = window.localStorage.getItem(TOKEN_KEY);
+        const rawUser = window.localStorage.getItem(USER_KEY);
+        if (rawUser) storedUser = JSON.parse(rawUser);
+      } catch {
+        // ignora
+      }
+
+      if (!storedToken) {
+        if (!cancelled) setIsLoading(false);
+        return;
+      }
+
+      // Mostra o usuário salvo localmente na hora, e confirma com o servidor em seguida.
+      if (!cancelled && storedUser) setToken(storedToken);
+      if (!cancelled && storedUser) setUser(storedUser);
+
+      try {
+        const res = await fetch("/api/auth/me", {
+          headers: { Authorization: `Bearer ${storedToken}` },
+        });
+        const json = await res.json().catch(() => null);
+        if (!cancelled) {
+          if (res.ok && json?.success) {
+            setUser(json.data);
+            setToken(storedToken);
+            window.localStorage.setItem(USER_KEY, JSON.stringify(json.data));
+          } else {
+            // token expirado/inválido
+            window.localStorage.removeItem(TOKEN_KEY);
+            window.localStorage.removeItem(USER_KEY);
+            setUser(null);
+            setToken(null);
+          }
+        }
+      } catch {
+        // sem conexão: mantém o que estava salvo localmente
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sinaliza fim do carregamento inicial
-    setIsLoading(false);
+
+    bootstrap();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const loginAs = (role: UserRole) => {
-    const found = users.find((u) => u.role === role) ?? null;
-    setUser(found);
+  function persist(newToken: string, newUser: User) {
+    setToken(newToken);
+    setUser(newUser);
     try {
-      if (found) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(found));
+      window.localStorage.setItem(TOKEN_KEY, newToken);
+      window.localStorage.setItem(USER_KEY, JSON.stringify(newUser));
     } catch {
       // ignora
     }
+  }
+
+  const login: AuthContextValue["login"] = async (email, senha) => {
+    const result = await apiCall<{ token: string; user: User }>("/auth/login", { email, senha });
+    if (!result.ok) return result;
+    persist(result.data.token, result.data.user);
+    return { ok: true };
+  };
+
+  const register: AuthContextValue["register"] = async (nome, email, senha, role) => {
+    const result = await apiCall<{ token: string; user: User }>("/auth/register", {
+      nome,
+      email,
+      senha,
+      role,
+    });
+    if (!result.ok) return result;
+    persist(result.data.token, result.data.user);
+    return { ok: true };
+  };
+
+  const loginAs: AuthContextValue["loginAs"] = async (role) => {
+    const conta = CONTAS_DEV[role];
+    return login(conta.email, conta.senha);
   };
 
   const logout = () => {
     setUser(null);
+    setToken(null);
     try {
-      window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(TOKEN_KEY);
+      window.localStorage.removeItem(USER_KEY);
     } catch {
       // ignora
     }
   };
 
-  const value = useMemo(() => ({ user, loginAs, logout, isLoading }), [user, isLoading]);
+  const value = useMemo(
+    () => ({ user, token, isLoading, login, register, loginAs, logout }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- login/register/loginAs/logout são recriadas a cada render mas não dependem de nada além do setState estável
+    [user, token, isLoading]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

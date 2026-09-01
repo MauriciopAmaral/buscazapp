@@ -30,8 +30,8 @@ export function ReivindicarWizard({ company }: { company: Company }) {
   const [codigo, setCodigo] = useState("");
   const stepIndex = steps.findIndex((s) => s.key === step);
 
-  const goToPainel = () => {
-    loginAs("empresa");
+  const goToPainel = async () => {
+    await loginAs("empresa");
     router.push("/painel");
   };
 

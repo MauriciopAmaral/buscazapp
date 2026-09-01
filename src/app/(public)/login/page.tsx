@@ -2,17 +2,49 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useState } from "react";
 import { Mail, Lock, User2, Building2, ShieldCheck } from "lucide-react";
 import { Button, Input, LinkButton } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
+import type { UserRole } from "@/types";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { loginAs } = useAuth();
+  const { login, loginAs } = useAuth();
 
-  const devLogin = (role: "consumidor" | "empresa" | "admin") => {
-    loginAs(role);
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(false);
+
+  const redirecionar = (role: UserRole) => {
     router.push(role === "empresa" ? "/painel" : role === "admin" ? "/admin" : "/minha-conta");
+  };
+
+  const devLogin = async (role: "consumidor" | "empresa" | "admin") => {
+    setErro(null);
+    setCarregando(true);
+    const result = await loginAs(role);
+    setCarregando(false);
+    if (!result.ok) {
+      setErro(result.error);
+      return;
+    }
+    redirecionar(role);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErro(null);
+    setCarregando(true);
+    const result = await login(email, senha);
+    setCarregando(false);
+    if (!result.ok) {
+      setErro(result.error);
+      return;
+    }
+    // O papel do usuário só é conhecido depois do login — pega da resposta salva no contexto.
+    router.push("/minha-conta");
   };
 
   return (
@@ -23,17 +55,32 @@ export default function LoginPage() {
       <h1 className="mt-4 text-2xl font-bold text-ink-900">Entrar no BuscaZapp</h1>
       <p className="mt-1 text-sm text-ink-500">Acesse sua conta para favoritar empresas e resgatar cupons.</p>
 
-      <form
-        className="mt-8 flex w-full flex-col gap-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          devLogin("consumidor");
-        }}
-      >
-        <Input label="E-mail" type="email" placeholder="voce@email.com" icon={<Mail size={16} />} required />
-        <Input label="Senha" type="password" placeholder="••••••••" icon={<Lock size={16} />} required />
-        <Button type="submit" fullWidth size="lg">
-          Entrar
+      <form className="mt-8 flex w-full flex-col gap-4" onSubmit={handleSubmit}>
+        <Input
+          label="E-mail"
+          type="email"
+          placeholder="voce@email.com"
+          icon={<Mail size={16} />}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <Input
+          label="Senha"
+          type="password"
+          placeholder="••••••••"
+          icon={<Lock size={16} />}
+          value={senha}
+          onChange={(e) => setSenha(e.target.value)}
+          required
+        />
+        {erro && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
+            {erro}
+          </p>
+        )}
+        <Button type="submit" fullWidth size="lg" disabled={carregando}>
+          {carregando ? "Entrando..." : "Entrar"}
         </Button>
       </form>
 
@@ -49,13 +96,31 @@ export default function LoginPage() {
           Atalhos de desenvolvimento — protótipo
         </p>
         <div className="flex flex-col gap-2">
-          <Button variant="outline" fullWidth icon={<User2 size={16} />} onClick={() => devLogin("consumidor")}>
+          <Button
+            variant="outline"
+            fullWidth
+            icon={<User2 size={16} />}
+            disabled={carregando}
+            onClick={() => devLogin("consumidor")}
+          >
             Entrar como consumidor
           </Button>
-          <Button variant="outline" fullWidth icon={<Building2 size={16} />} onClick={() => devLogin("empresa")}>
+          <Button
+            variant="outline"
+            fullWidth
+            icon={<Building2 size={16} />}
+            disabled={carregando}
+            onClick={() => devLogin("empresa")}
+          >
             Entrar como empresa
           </Button>
-          <Button variant="outline" fullWidth icon={<ShieldCheck size={16} />} onClick={() => devLogin("admin")}>
+          <Button
+            variant="outline"
+            fullWidth
+            icon={<ShieldCheck size={16} />}
+            disabled={carregando}
+            onClick={() => devLogin("admin")}
+          >
             Entrar como administrador
           </Button>
         </div>
