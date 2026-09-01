@@ -141,8 +141,8 @@ export default function CriarEmpresaPage() {
         <section className="rounded-2xl border border-ink-200 bg-white p-5">
           <h2 className="mb-3 text-sm font-semibold text-ink-900">Dados da empresa</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Nome fantasia" value={form.nomeFantasia} onChange={setField("nomeFantasia")} required />
-            <Input label="Razão social" value={form.razaoSocial} onChange={setField("razaoSocial")} required />
+            <Input label="Nome fantasia(OPCIONAL)" value={form.nomeFantasia} onChange={setField("nomeFantasia")} required />
+            <Input label="Razão social ou CPF" value={form.razaoSocial} onChange={setField("razaoSocial")} required />
             <Input
               label="CNPJ"
               value={form.cnpj}
