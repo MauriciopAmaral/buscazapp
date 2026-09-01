@@ -1,0 +1,196 @@
+# Guia passo a passo — Banco de dados MySQL na Hostinger
+
+Este guia mostra como criar o banco de dados MySQL do BuscaZapp no hPanel da Hostinger e conectar o projeto Next.js a ele usando Prisma. Depois de seguir os passos, você terá o schema criado e os dados de exemplo (as mesmas 30 empresas, categorias, cupons etc.) carregados de verdade no banco.
+
+---
+
+## Parte 1 — Criar o banco de dados no hPanel
+
+1. Acesse **hpanel.hostinger.com** e faça login.
+2. No menu lateral, entre em **Bancos de Dados → Bancos de dados MySQL** (em alguns planos aparece como "Databases → MySQL Databases").
+3. Clique em **Criar novo banco de dados**.
+4. Preencha:
+   - **Nome do banco de dados**: algo como `buscazapp` (a Hostinger vai prefixar automaticamente, ex: `u123456789_buscazapp`).
+   - **Nome de usuário**: ex: `buscazapp_user` (também recebe o prefixo, ex: `u123456789_buscazapp`).
+   - **Senha**: crie uma senha forte e **guarde em um lugar seguro** (você vai precisar dela no `.env`).
+5. Clique em **Criar**. Anote os três dados:
+   - Nome do banco (ex: `u123456789_buscazapp`)
+   - Usuário (ex: `u123456789_buscazapp`)
+   - Senha
+
+---
+
+## Parte 2 — Liberar acesso remoto ao banco
+
+Por padrão, o MySQL da Hostinger só aceita conexões de dentro do próprio servidor. Como o Next.js vai rodar em outro lugar (seu computador agora, e depois provavelmente na Vercel), você precisa liberar o acesso remoto.
+
+1. Ainda em **Bancos de Dados MySQL**, procure a seção **Acesso remoto MySQL** (ou **Remote MySQL**).
+2. Clique em **Adicionar novo host de acesso remoto**.
+3. Para testar do seu computador agora, adicione:
+   - `%` (libera de qualquer IP — **use só para testar**, depois troque pelo IP fixo do seu servidor de produção por segurança)
+   - ou o IP da sua conexão atual, que a própria Hostinger sugere automaticamente.
+4. Salve.
+
+> **Importante sobre segurança**: deixar `%` liberado funciona para desenvolvimento, mas depois que o site estiver em produção (ex: na Vercel), o ideal é restringir para os IPs dos servidores da Vercel — como a Vercel usa IPs dinâmicos, muita gente nesse caso usa um serviço de proxy (como o **Prisma Accelerate** ou um túnel) ou migra o banco para um provedor com IP fixo/whitelisting mais flexível. Podemos ajustar isso quando chegar a hora do deploy — por enquanto, com `%` liberado, você já consegue desenvolver localmente.
+
+5. Anote também o **host do banco** — normalmente algo como `srv123.hstgr.io` ou o IP do servidor. Ele aparece na mesma tela de Bancos de Dados MySQL, em "Detalhes de acesso" ou similar. A porta padrão é `3306`.
+
+---
+
+## Parte 3 — Configurar o projeto
+
+O projeto já vem com o **Prisma** instalado e o **schema do banco** pronto em `prisma/schema.prisma` (ele espelha exatamente os tipos que já existem no frontend: Company, Category, Coupon, Promotion, Review, Subscription, etc.).
+
+1. Na pasta do projeto, copie o arquivo de exemplo de variáveis de ambiente:
+
+   **Windows (cmd):**
+   ```bash
+   copy .env.example .env
+   ```
+
+   **Mac/Linux:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Abra o `.env` e preencha a linha `DATABASE_URL` com os dados que você anotou:
+
+   ```
+   DATABASE_URL="mysql://USUARIO:SENHA@HOST:3306/NOME_DO_BANCO"
+   ```
+
+   Exemplo real (com dados fictícios):
+
+   ```
+   DATABASE_URL="mysql://u123456789_buscazapp:MinhaSenh@123@srv123.hstgr.io:3306/u123456789_buscazapp"
+   ```
+
+   ⚠️ Se sua senha tiver caracteres especiais (`@`, `#`, `%`, `/`, etc.), eles precisam ser codificados na URL. Por exemplo, `@` vira `%40`. Se preferir, me manda a senha (ou só me avisa que ela tem caractere especial) que eu te ajudo a montar a string certinha.
+
+---
+
+## Parte 4 — Criar as tabelas no banco (migration)
+
+Com o `.env` preenchido, rode no terminal, dentro da pasta do projeto:
+
+```bash
+npm install
+npx prisma db push
+```
+
+Isso vai:
+- Conectar no banco da Hostinger
+- Criar todas as tabelas (empresas, categorias, cupons, promoções, avaliações, usuários, assinaturas, leads, reivindicações, anúncios, etc.)
+- Gerar o cliente Prisma tipado para o TypeScript
+
+> **Por que `db push` e não `migrate dev`?** O comando `migrate dev` tenta criar um banco temporário extra ("shadow database") para comparar versões do schema — e hospedagem compartilhada normalmente não deixa o usuário criar bancos novos, só usar o que já foi criado no hPanel. O `db push` aplica o schema direto, sem precisar desse banco temporário. Ele não gera histórico de migrations versionado (bom pra quem tem controle total do servidor), mas para este momento — criar as tabelas e começar a desenvolver — funciona igual.
+
+Se aparecer algum erro de conexão aqui, geralmente é um destes três motivos:
+- O acesso remoto (Parte 2) não foi salvo corretamente — confira no hPanel.
+- A `DATABASE_URL` tem algum caractere errado ou a senha não foi escapada.
+- Seu provedor de internet/rede está bloqueando a porta 3306 — nesse caso, tente de outra rede (ex: hotspot do celular) para confirmar.
+
+---
+
+## Parte 5 — Popular o banco com os dados de exemplo
+
+O projeto já tem um script de seed (`prisma/seed.ts`) que pega os mesmos dados fictícios que já estão em `src/mocks` (as 30 empresas do Pará, categorias, cupons, promoções, avaliações etc.) e insere tudo no banco real. Assim você não perde nada do que já foi validado visualmente.
+
+```bash
+npm run db:seed
+```
+
+Ao final, você terá no banco:
+- 30 empresas com endereço, horários, galeria
+- 15 categorias
+- Produtos e serviços de cada empresa reivindicada
+- 10 promoções e 10 cupons
+- 20 avaliações
+- Usuários de teste (consumidor, empresa, admin) — **senha padrão: `123456`**
+- Assinaturas, pagamentos, leads, analytics diário, reivindicações, prospecção e anúncios
+
+---
+
+## Parte 6 — Conferir se deu tudo certo
+
+Você pode abrir uma interface visual do banco direto do terminal:
+
+```bash
+npm run db:studio
+```
+
+Isso abre o **Prisma Studio** no navegador (`http://localhost:5555`), onde dá pra navegar em todas as tabelas e ver os dados inseridos, bem parecido com um phpMyAdmin.
+
+---
+
+## Atualização: geolocalização
+
+O schema ganhou dois campos novos em `Company` (`latitude` e `longitude`), usados para calcular distância real até quem está buscando, e mostrar mapa/rota na página da empresa. Se você já tinha rodado `npx prisma db push` e `npm run db:seed` antes desta atualização, rode os dois de novo (nessa ordem) para aplicar as novas colunas e repopular com as coordenadas:
+
+```bash
+npx prisma db push
+npm run db:seed
+```
+
+Isso não apaga o que já existia — só ajusta a estrutura e atualiza os dados de exemplo.
+
+---
+
+## Atualização: BuscaZapp Clube e Cashback
+
+O schema ganhou os campos `clubeParceiro` e `cashbackPercentual` em `Company`, `exclusivoClube` em `Coupon`, `clubeAssinante` em `User`, e uma tabela nova `CashbackTransaction` (extrato de cashback por usuário/empresa). Se o banco já estava rodando antes desta atualização, rode de novo:
+
+```bash
+npx prisma db push
+npm run db:seed
+```
+
+---
+
+## Atualização: importação do banco antigo (Neon/Postgres)
+
+O dump `buscazapbackup20260823.dump` que você mandou foi analisado e trazido pro projeto — só que era um banco vazio, com apenas 1 conta de demonstração (`Demo Prestador`) e 6 anúncios de exemplo (fora do Pará: São Paulo, Rio, BH, Curitiba, Brasília e Salvador). Não havia empresas reais, assinaturas nem pagamentos naquele banco. Ainda assim, deixei os 6 registros já dentro do projeto (`src/mocks/legacyCompanies.ts`) e no `prisma/seed.ts`, com a senha original preservada (hash bcrypt), pra você/o cliente atualizar depois pelo painel.
+
+⚠️ **Antes de rodar o seed de novo, confirme uma coisa importante**: se você **já rodou `npm run db:seed` alguma vez antes** (mesmo que só uma vez), rodar de novo vai duplicar linhas em algumas tabelas (produtos, promoções, cupons, avaliações, leads, anúncios) porque elas não têm proteção contra duplicidade — só empresas, categorias, cidades e usuários são seguros pra rodar de novo. Se as tabelas ainda estavam com 0 linhas na última vez que você olhou o phpMyAdmin, pode rodar `npm run db:seed` numa boa. Se já tinha dado certo antes, me avisa antes de rodar de novo que eu ajusto o script pra ser seguro repetir.
+
+```bash
+npx prisma db push
+npm run db:seed
+```
+
+---
+
+## Atualização: API real + autenticação (JWT)
+
+O backend "de verdade" começou: agora existe uma API completa em `src/app/api/*` (autenticação, empresas, categorias, cupons, promoções, avaliações, favoritos, reivindicação de perfil, cashback, clube e um início do painel da empresa) — tudo documentado em `API.md`. A autenticação é por token (JWT) em vez de cookie de sessão, de propósito: assim o mesmo backend serve o site e, mais pra frente, os apps Android/iOS.
+
+Pra isso funcionar você precisa adicionar mais uma variável no `.env`:
+
+```
+JWT_SECRET="uma-string-aleatoria-bem-longa-aqui"
+```
+
+(gere uma com `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
+
+Como a API usa o Prisma Client de verdade (não só o schema), depois de configurar o `.env` rode:
+
+```bash
+npm install
+npx prisma generate
+npx prisma db push
+npm run db:seed
+npm run dev
+```
+
+E teste com o passo a passo em `API.md`.
+
+**Importante**: o site (as telas que você já usa) ainda está rodando com os dados mockados em `src/mocks/*` — a API já existe e já funciona, mas as telas ainda não foram trocadas pra consumir ela. Essa troca (página por página, usando os arquivos em `src/services/*.ts` como ponte) é o próximo passo.
+
+## O que ainda falta (próxima etapa)
+
+1. **Conectar o site na API nova** — trocar, um por um, os arquivos de `src/services/*.ts` de "leem os mocks" para "chamam a API real" (o formato de dados foi desenhado igual de propósito, pra essa troca ser direta).
+2. **Endpoints de admin** (aprovar reivindicação, mudar status de empresa, etc.) — hoje só existe a parte de consumidor/empresa.
+3. **Upload de imagens de verdade** (hoje logo/capa/galeria são só URLs de placeholder) — normalmente usando um serviço como Cloudflare R2, S3 ou Uploadthing, já que a Hostinger compartilhada não é ideal para isso.
+4. **Deploy do Next.js** em algum lugar que rode Node.js (Vercel é o mais simples e tem plano gratuito) apontando pro mesmo banco MySQL da Hostinger — lembrando de configurar `DATABASE_URL` e `JWT_SECRET` nas variáveis de ambiente da Vercel.
+
+Me diz por qual desses quer que eu continue.

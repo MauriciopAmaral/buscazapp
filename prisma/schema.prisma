@@ -1,0 +1,471 @@
+// ============================================================
+// BuscaZapp — Schema do banco de dados (Prisma + MySQL)
+// Espelha os tipos em src/types/index.ts.
+// Rode `npx prisma migrate dev --name init` para criar as tabelas.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  consumidor
+  empresa
+  admin
+}
+
+enum PlanoId {
+  gratuito
+  pro
+  premium
+  premium_plus
+}
+
+enum CompanyStatus {
+  ativo
+  pendente
+  suspenso
+}
+
+enum PromotionStatus {
+  ativa
+  agendada
+  expirada
+  desativada
+}
+
+enum CouponStatus {
+  ativo
+  expirado
+  utilizado
+  desativado
+}
+
+enum ClaimStatus {
+  novo
+  aguardando_validacao
+  em_analise
+  aprovado
+  rejeitado
+}
+
+enum ClaimMethod {
+  email
+  telefone
+  documento
+}
+
+enum ProspectStatus {
+  novo
+  contatado
+  interessado
+  reivindicado
+  assinante
+  nao_interessado
+}
+
+enum LeadOrigem {
+  whatsapp
+  telefone
+  cupom
+  site
+}
+
+enum SubscriptionStatus {
+  ativa
+  cancelada
+  atrasada
+}
+
+enum SubscriptionPeriod {
+  mensal
+  trimestral
+  anual
+}
+
+enum PaymentStatus {
+  pago
+  pendente
+  falhou
+}
+
+enum AdType {
+  destaque_home
+  destaque_categoria
+  destaque_cidade
+  resultado_patrocinado
+  promocao_destacada
+}
+
+enum AdStatus {
+  ativo
+  pausado
+  encerrado
+}
+
+enum CashbackStatus {
+  creditado
+  pendente
+  resgatado
+}
+
+model User {
+  id        String    @id @default(cuid())
+  nome      String
+  email     String    @unique
+  senhaHash String
+  avatarUrl String?
+  role      UserRole  @default(consumidor)
+  companyId String?
+  company   Company?  @relation(fields: [companyId], references: [id])
+  favorites Favorite[]
+  claims    Claim[]
+  cashbackTransactions CashbackTransaction[]
+  clubeAssinante Boolean @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model Category {
+  id             String     @id @default(cuid())
+  slug           String     @unique
+  nome           String
+  icone          String
+  descricao      String?
+  categoriaPaiId String?
+  ativo          Boolean    @default(true)
+  companies      Company[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model City {
+  id            String         @id @default(cuid())
+  nome          String
+  estado        String
+  neighborhoods Neighborhood[]
+  companies     Company[]
+  createdAt     DateTime       @default(now())
+
+  @@unique([nome, estado])
+}
+
+model Neighborhood {
+  id        String   @id @default(cuid())
+  nome      String
+  cidadeId  String
+  city      City     @relation(fields: [cidadeId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([cidadeId])
+}
+
+model Company {
+  id            String        @id @default(cuid())
+  slug          String        @unique
+  nomeFantasia  String
+  razaoSocial   String
+  cnpj          String        @unique
+  logoUrl       String?
+  capaUrl       String?
+  categoriaId   String
+  categoria     Category      @relation(fields: [categoriaId], references: [id])
+  descricao     String        @db.Text
+  telefone      String
+  whatsapp      String
+  email         String?
+  instagram     String?
+  site          String?
+
+  cep           String
+  logradouro    String
+  numero        String
+  complemento   String?
+  bairro        String
+  cidadeNome    String
+  cidadeId      String?
+  cidade        City?         @relation(fields: [cidadeId], references: [id])
+  estado        String
+  latitude      Float         @default(0)
+  longitude     Float         @default(0)
+
+  clubeParceiro      Boolean  @default(false)
+  cashbackPercentual Float    @default(0)
+
+  avaliacaoMedia   Float      @default(0)
+  totalAvaliacoes  Int        @default(0)
+  verificado       Boolean    @default(false)
+  premium          Boolean    @default(false)
+  planoId          PlanoId    @default(gratuito)
+  reivindicada     Boolean    @default(false)
+  patrocinada      Boolean    @default(false)
+  status           CompanyStatus @default(pendente)
+
+  horarios     BusinessHour[]
+  galeria      GalleryImage[]
+  products     Product[]
+  services     Service[]
+  promotions   Promotion[]
+  coupons      Coupon[]
+  reviews      Review[]
+  users        User[]
+  subscription Subscription?
+  payments     Payment[]
+  analytics    CompanyAnalytics?
+  leads        Lead[]
+  claims       Claim[]
+  prospect     Prospect?
+  ads          Ad[]
+  favoritedBy  Favorite[]
+  cashbackTransactions CashbackTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoriaId])
+  @@index([cidadeNome])
+}
+
+model BusinessHour {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  dia       String   // segunda..domingo
+  aberto    Boolean  @default(true)
+  inicio    String?
+  fim       String?
+
+  @@unique([companyId, dia])
+}
+
+model GalleryImage {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  url       String
+  ordem     Int     @default(0)
+
+  @@index([companyId])
+}
+
+model Product {
+  id                String   @id @default(cuid())
+  companyId         String
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  imagemUrl         String?
+  nome              String
+  descricao         String   @db.Text
+  preco             Decimal  @db.Decimal(10, 2)
+  precoPromocional  Decimal? @db.Decimal(10, 2)
+  ativo             Boolean  @default(true)
+  createdAt         DateTime @default(now())
+
+  @@index([companyId])
+}
+
+model Service {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  nome          String
+  descricao     String   @db.Text
+  precoInicial  Decimal  @db.Decimal(10, 2)
+  imagemUrl     String?
+  createdAt     DateTime @default(now())
+
+  @@index([companyId])
+}
+
+model Promotion {
+  id                String          @id @default(cuid())
+  companyId         String
+  company           Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  titulo            String
+  descricao         String          @db.Text
+  imagemUrl         String?
+  inicio            DateTime
+  termino           DateTime
+  preco             Decimal         @db.Decimal(10, 2)
+  precoPromocional  Decimal         @db.Decimal(10, 2)
+  status            PromotionStatus @default(ativa)
+  createdAt         DateTime        @default(now())
+
+  @@index([companyId])
+}
+
+model Coupon {
+  id          String       @id @default(cuid())
+  companyId   String
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  titulo      String
+  descricao   String       @db.Text
+  codigo      String
+  desconto    String
+  validade    DateTime
+  limite      Int          @default(0)
+  utilizados  Int          @default(0)
+  status      CouponStatus @default(ativo)
+  exclusivoClube Boolean   @default(false)
+  createdAt   DateTime     @default(now())
+
+  @@unique([companyId, codigo])
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  autor       String
+  avatarUrl   String?
+  nota        Int
+  comentario  String   @db.Text
+  respostaTexto String? @db.Text
+  respostaData  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([companyId])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, companyId])
+}
+
+model Plan {
+  id               PlanoId  @id
+  nome             String
+  precoMensal      Decimal  @db.Decimal(10, 2)
+  precoTrimestral  Decimal  @db.Decimal(10, 2)
+  precoAnual       Decimal  @db.Decimal(10, 2)
+  destaque         Boolean  @default(false)
+  recursos         Json
+}
+
+model Subscription {
+  id              String              @id @default(cuid())
+  companyId       String              @unique
+  company         Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  planoId         PlanoId
+  periodicidade   SubscriptionPeriod
+  status          SubscriptionStatus  @default(ativa)
+  proximaCobranca DateTime
+  valor           Decimal             @db.Decimal(10, 2)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  companyId   String
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  data        DateTime
+  valor       Decimal       @db.Decimal(10, 2)
+  status      PaymentStatus @default(pendente)
+  descricao   String
+
+  @@index([companyId])
+}
+
+model CompanyAnalytics {
+  id               String   @id @default(cuid())
+  companyId        String   @unique
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  visualizacoes    Int      @default(0)
+  cliquesWhatsapp  Int      @default(0)
+  leads            Int      @default(0)
+  cuponsUtilizados Int      @default(0)
+  updatedAt        DateTime @updatedAt
+}
+
+model AnalyticsDaily {
+  id               String   @id @default(cuid())
+  companyId        String
+  data             DateTime @db.Date
+  visualizacoes    Int      @default(0)
+  cliquesWhatsapp  Int      @default(0)
+  leads            Int      @default(0)
+  cuponsUtilizados Int      @default(0)
+
+  @@unique([companyId, data])
+  @@index([companyId])
+}
+
+model Lead {
+  id        String     @id @default(cuid())
+  companyId String
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  origem    LeadOrigem
+  tipo      String
+  acao      String
+  createdAt DateTime   @default(now())
+
+  @@index([companyId])
+}
+
+model Claim {
+  id        String      @id @default(cuid())
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?       @relation(fields: [userId], references: [id])
+  metodo    ClaimMethod
+  status    ClaimStatus @default(novo)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([companyId])
+}
+
+model Prospect {
+  id             String         @id @default(cuid())
+  companyId      String         @unique
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  status         ProspectStatus @default(novo)
+  ultimoContato  DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model CashbackTransaction {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  valorCompra   Decimal        @db.Decimal(10, 2)
+  percentual    Float
+  valorCashback Decimal        @db.Decimal(10, 2)
+  status        CashbackStatus @default(pendente)
+  createdAt     DateTime       @default(now())
+
+  @@index([userId])
+  @@index([companyId])
+}
+
+model Ad {
+  id          String   @id @default(cuid())
+  tipo        AdType
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  inicio      DateTime
+  termino     DateTime
+  status      AdStatus @default(ativo)
+  cliques     Int      @default(0)
+  impressoes  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([companyId])
+}
