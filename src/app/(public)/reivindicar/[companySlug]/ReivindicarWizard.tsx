@@ -4,14 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
-  CheckCircle2, Mail, Phone, FileText, ShieldCheck, PartyPopper, ArrowRight,
+  CheckCircle2, Mail, Phone, FileText, ShieldCheck, ArrowRight,
 } from "lucide-react";
 import { Button, Input } from "@/components/ui";
 import { Company } from "@/types";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
-type Step = "confirmar" | "conta" | "validacao" | "codigo" | "enviado" | "aprovado";
+type Step = "confirmar" | "conta" | "validacao" | "codigo" | "enviado";
 
 const steps: { key: Step; label: string }[] = [
   { key: "confirmar", label: "Confirmar" },
@@ -19,20 +19,59 @@ const steps: { key: Step; label: string }[] = [
   { key: "validacao", label: "Validação" },
   { key: "codigo", label: "Código" },
   { key: "enviado", label: "Enviado" },
-  { key: "aprovado", label: "Aprovado" },
 ];
 
 export function ReivindicarWizard({ company }: { company: Company }) {
   const router = useRouter();
-  const { loginAs } = useAuth();
+  const { register, token } = useAuth();
   const [step, setStep] = useState<Step>("confirmar");
   const [metodo, setMetodo] = useState<"email" | "telefone" | "documento">("email");
   const [codigo, setCodigo] = useState("");
   const stepIndex = steps.findIndex((s) => s.key === step);
 
-  const goToPainel = async () => {
-    await loginAs("empresa");
-    router.push("/painel");
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erroConta, setErroConta] = useState<string | null>(null);
+  const [criandoConta, setCriandoConta] = useState(false);
+  const [enviandoClaim, setEnviandoClaim] = useState(false);
+  const [erroClaim, setErroClaim] = useState<string | null>(null);
+
+  const criarContaEContinuar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErroConta(null);
+    setCriandoConta(true);
+    const result = await register(nome, email, senha, "empresa");
+    setCriandoConta(false);
+    if (!result.ok) {
+      setErroConta(result.error);
+      return;
+    }
+    setStep("validacao");
+  };
+
+  const confirmarCodigoEEnviar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErroClaim(null);
+    setEnviandoClaim(true);
+    try {
+      const res = await fetch("/api/claims", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ companySlug: company.slug, metodo }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        setErroClaim(json?.error?.message ?? "Não foi possível enviar a reivindicação. Tente de novo.");
+        return;
+      }
+      setStep("enviado");
+    } finally {
+      setEnviandoClaim(false);
+    }
   };
 
   return (
@@ -85,21 +124,42 @@ export function ReivindicarWizard({ company }: { company: Company }) {
         )}
 
         {step === "conta" && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setStep("validacao");
-            }}
-          >
+          <form onSubmit={criarContaEContinuar}>
             <h2 className="text-lg font-bold text-ink-900">Crie sua conta de empresa</h2>
             <p className="mt-1 text-sm text-ink-500">Você usará esta conta para acessar o painel.</p>
             <div className="mt-5 flex flex-col gap-4">
-              <Input label="Seu nome" placeholder="Nome completo" required />
-              <Input label="E-mail" type="email" placeholder="voce@empresa.com" required />
-              <Input label="Senha" type="password" placeholder="••••••••" required />
+              <Input
+                label="Seu nome"
+                placeholder="Nome completo"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                required
+              />
+              <Input
+                label="E-mail"
+                type="email"
+                placeholder="voce@empresa.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <Input
+                label="Senha"
+                type="password"
+                placeholder="••••••••"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                hint="Mínimo de 6 caracteres."
+                required
+              />
             </div>
-            <Button type="submit" fullWidth className="mt-6">
-              Continuar
+            {erroConta && (
+              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
+                {erroConta}
+              </p>
+            )}
+            <Button type="submit" fullWidth className="mt-6" disabled={criandoConta}>
+              {criandoConta ? "Criando conta..." : "Continuar"}
             </Button>
           </form>
         )}
@@ -134,15 +194,11 @@ export function ReivindicarWizard({ company }: { company: Company }) {
         )}
 
         {step === "codigo" && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setStep("enviado");
-            }}
-          >
+          <form onSubmit={confirmarCodigoEEnviar}>
             <h2 className="text-lg font-bold text-ink-900">Digite o código recebido</h2>
             <p className="mt-1 text-sm text-ink-500">
-              Enviamos um código fictício de 6 dígitos. Para este protótipo, use <strong>123456</strong>.
+              Enviamos um código fictício de 6 dígitos (o envio de SMS/e-mail de verdade ainda não existe neste
+              protótipo). Use <strong>123456</strong>.
             </p>
             <Input
               label="Código de verificação"
@@ -153,8 +209,13 @@ export function ReivindicarWizard({ company }: { company: Company }) {
               className="mt-5 text-center tracking-[0.5em]"
               required
             />
-            <Button type="submit" fullWidth className="mt-6" icon={<ShieldCheck size={16} />}>
-              Confirmar código
+            {erroClaim && (
+              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
+                {erroClaim}
+              </p>
+            )}
+            <Button type="submit" fullWidth className="mt-6" icon={<ShieldCheck size={16} />} disabled={enviandoClaim}>
+              {enviandoClaim ? "Enviando..." : "Confirmar código"}
             </Button>
           </form>
         )}
@@ -166,24 +227,10 @@ export function ReivindicarWizard({ company }: { company: Company }) {
             </span>
             <h2 className="mt-4 text-lg font-bold text-ink-900">Solicitação enviada!</h2>
             <p className="mt-1 text-sm text-ink-500">
-              Nossa equipe está analisando sua solicitação de reivindicação. Isso costuma ser rápido.
+              Sua reivindicação foi registrada e está aguardando aprovação da nossa equipe. Você já pode acessar o
+              painel — o acesso completo aos dados desta empresa libera assim que a reivindicação for aprovada.
             </p>
-            <Button className="mt-6" onClick={() => setStep("aprovado")} iconRight={<ArrowRight size={16} />}>
-              Simular aprovação
-            </Button>
-          </div>
-        )}
-
-        {step === "aprovado" && (
-          <div className="flex flex-col items-center text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-              <PartyPopper size={26} />
-            </span>
-            <h2 className="mt-4 text-lg font-bold text-ink-900">Perfil aprovado!</h2>
-            <p className="mt-1 text-sm text-ink-500">
-              Parabéns, {company.nomeFantasia} agora é administrada por você. Acesse o painel para completar o perfil.
-            </p>
-            <Button className="mt-6" onClick={goToPainel} iconRight={<ArrowRight size={16} />}>
+            <Button className="mt-6" onClick={() => router.push("/painel")} iconRight={<ArrowRight size={16} />}>
               Acessar meu painel
             </Button>
           </div>

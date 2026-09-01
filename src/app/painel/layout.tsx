@@ -3,6 +3,7 @@ import {
   Users, BarChart3, CreditCard, Wallet, Settings, Rocket,
 } from "lucide-react";
 import { Sidebar, SidebarItem } from "@/components/layout/Sidebar";
+import { RequireRole } from "@/components/auth/RequireRole";
 
 const items: SidebarItem[] = [
   { href: "/painel", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
@@ -23,8 +24,10 @@ const items: SidebarItem[] = [
 
 export default function PainelLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Sidebar items={items} title="Painel da empresa" badge="Empresa" switchHref="/" switchLabel="Ver site público">
-      {children}
-    </Sidebar>
+    <RequireRole role="empresa">
+      <Sidebar items={items} title="Painel da empresa" badge="Empresa" switchHref="/" switchLabel="Ver site público">
+        {children}
+      </Sidebar>
+    </RequireRole>
   );
 }

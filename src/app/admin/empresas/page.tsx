@@ -1,20 +1,50 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { Eye, CheckCircle2, XCircle } from "lucide-react";
-import { DataTable, Badge, FilterBar, Select, SearchInput } from "@/components/ui";
-import { companies, cidadesPara } from "@/mocks/companies";
-import { categories } from "@/mocks/categories";
+import { DataTable, Badge, FilterBar, Select, SearchInput, LoadingState } from "@/components/ui";
 import { planos } from "@/mocks/subscriptions";
+import { useAuth } from "@/context/AuthContext";
+import { Category, Company } from "@/types";
 import Link from "next/link";
 
 export default function AdminEmpresasPage() {
+  const { token } = useAuth();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
   const [termo, setTermo] = useState("");
   const [cidade, setCidade] = useState("");
   const [categoria, setCategoria] = useState("");
   const [plano, setPlano] = useState("");
   const [reivindicada, setReivindicada] = useState("");
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    Promise.all([
+      fetch("/api/admin/companies", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+      fetch("/api/categories").then((r) => r.json()),
+    ])
+      .then(([companiesJson, categoriesJson]) => {
+        if (cancelled) return;
+        if (companiesJson?.success) setCompanies(companiesJson.data);
+        if (categoriesJson?.success) setCategories(categoriesJson.data);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const cidadesPara = useMemo(
+    () => Array.from(new Set(companies.map((c) => c.endereco.cidade))).sort(),
+    [companies]
+  );
 
   const results = useMemo(() => {
     return companies.filter((c) => {
@@ -26,7 +56,7 @@ export default function AdminEmpresasPage() {
       if (reivindicada === "nao" && c.reivindicada) return false;
       return true;
     });
-  }, [termo, cidade, categoria, plano, reivindicada]);
+  }, [companies, termo, cidade, categoria, plano, reivindicada]);
 
   return (
     <div>
@@ -67,6 +97,7 @@ export default function AdminEmpresasPage() {
       </FilterBar>
 
       <div className="mt-4">
+        {loading ? <LoadingState rows={2} /> : (
         <DataTable
           data={results}
           rowKey={(c) => c.id}
@@ -110,6 +141,7 @@ export default function AdminEmpresasPage() {
             },
           ]}
         />
+        )}
       </div>
     </div>
   );

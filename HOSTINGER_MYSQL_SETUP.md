@@ -201,10 +201,26 @@ O que **continua** usando dados fictícios (`src/mocks/*`), porque a API corresp
 - O assistente de "Reivindicar perfil" continua simulando o envio de código (não existe backend de SMS/e-mail ainda).
 - Os selos de "com oferta"/"com cupom" nos cartões de empresa (`CompanyCard`) ainda comparam com os cupons/promoções fictícios — podem aparecer errados pra empresas reais até isso ser ajustado também.
 
+## Atualização: painel da empresa completo + aprovação de reivindicações
+
+Mais uma leva de telas passou a usar o banco de verdade:
+
+- **Painel da empresa**: Produtos, Serviços, Promoções (com pausar/reativar), Avaliações (responder), Leads e Estatísticas — tudo com CRUD real via `/api/painel/*`.
+- **Reivindicar perfil** (`/reivindicar/[slug]`): a etapa de "criar conta" agora cria mesmo a conta (via `/api/auth/register`), e a etapa final grava a reivindicação de verdade (via `POST /api/claims`) — só a validação em si (código por e-mail/SMS/documento) continua simulada, porque não existe serviço de envio configurado ainda.
+- **Admin → Reivindicações**: lista as reivindicações reais e aprova/rejeita de verdade (`/api/admin/claims`). Aprovar já faz duas coisas automaticamente: marca a empresa como reivindicada e vincula a conta do usuário como dona dela (`User.companyId`) — é isso que faz o painel da empresa dela passar a mostrar os dados certos.
+- **Admin → Empresas**: lista todas as empresas reais do banco (`/api/admin/companies`).
+- **Proteção de rota**: `/painel/*` agora exige estar logado como `empresa`, e `/admin/*` exige estar logado como `admin` — quem não estiver logado (ou for do papel errado) é redirecionado automaticamente.
+
+O que **continua** com dados fictícios, porque a API correspondente ainda não existe:
+
+- Painel da empresa: Fotos, Assinatura, Financeiro, Configurações, Impulsionar (o "Impulsionar" tem tela pronta mas não processa pagamento de verdade).
+- Todo o resto do admin: usuários, cidades/bairros/estados, categorias, cupons, promoções, planos, financeiro, relatórios, prospecção, anúncios, empresas não reivindicadas.
+- Upload de imagem de verdade (logo/capa/galeria/fotos de produto continuam sendo só texto de URL).
+
 ## O que ainda falta (próxima etapa)
 
-1. **Conectar o resto do painel da empresa e o painel de admin** — cada tela dessas precisa primeiro de um endpoint próprio na API (ex: `/api/painel/products`, `/api/admin/claims`, etc.), seguindo o mesmo padrão de `/api/painel/coupons`.
-2. **Upload de imagens de verdade** (hoje logo/capa/galeria são só URLs de placeholder) — normalmente usando um serviço como Cloudflare R2, S3 ou Uploadthing, já que a Hostinger compartilhada não é ideal para isso.
-3. **Deploy do Next.js** — já feito na Vercel, apontando pro banco MySQL da Hostinger.
+1. **Terminar o resto do admin** — cada tela restante (cidades, bairros, planos, cupons/promoções em massa, financeiro, relatórios, prospecção, anúncios, usuários) precisa de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies`.
+2. **Upload de imagens de verdade** — normalmente usando um serviço como Cloudflare R2, S3 ou Uploadthing, já que a Hostinger compartilhada não é ideal para isso. Preciso que você crie a conta nesse serviço e me passe as chaves de acesso pra eu integrar.
+3. **Validação de verdade na reivindicação de perfil** (enviar código por e-mail/SMS real) — precisa de um serviço de envio (ex: Resend pra e-mail, alguma API de SMS) configurado com chave de API.
 
 Me diz por qual desses quer que eu continue.

@@ -1,24 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { Button, Modal, Input, Textarea, EmptyState, Badge } from "@/components/ui";
-import { useCurrentCompany } from "@/lib/useCurrentCompany";
-import { getProductsByCompany } from "@/mocks/offerings";
+import { Button, Modal, Input, Textarea, EmptyState, Badge, LoadingState } from "@/components/ui";
+import { useAuth } from "@/context/AuthContext";
 import { Product } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 
 export default function ProdutosPage() {
-  const company = useCurrentCompany();
-  const [products, setProducts] = useState<Product[]>(() => getProductsByCompany(company.id));
+  const { token } = useAuth();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    fetch("/api/painel/products", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((json) => {
+        if (!cancelled && json?.success) setProducts(json.data);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const startNew = () => {
     setEditing({
-      id: `new-${Date.now()}`,
-      companyId: company.id,
+      id: "",
+      companyId: "",
       imagemUrl: "https://picsum.photos/seed/novo-produto/400/300",
       nome: "",
       descricao: "",
@@ -28,15 +46,35 @@ export default function ProdutosPage() {
     setOpen(true);
   };
 
-  const save = (product: Product) => {
+  const save = async (product: Product) => {
+    if (!token) return;
+    setErro(null);
+    const isNew = !product.id;
+    const res = await fetch(isNew ? "/api/painel/products" : `/api/painel/products/${product.id}`, {
+      method: isNew ? "POST" : "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(product),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.success) {
+      setErro(json?.error?.message ?? "Não foi possível salvar o produto.");
+      return;
+    }
     setProducts((prev) => {
-      const exists = prev.some((p) => p.id === product.id);
-      return exists ? prev.map((p) => (p.id === product.id ? product : p)) : [product, ...prev];
+      const exists = prev.some((p) => p.id === json.data.id);
+      return exists ? prev.map((p) => (p.id === json.data.id ? json.data : p)) : [json.data, ...prev];
     });
     setOpen(false);
   };
 
-  const remove = (id: string) => setProducts((prev) => prev.filter((p) => p.id !== id));
+  const remove = async (id: string) => {
+    if (!token) return;
+    const res = await fetch(`/api/painel/products/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setProducts((prev) => prev.filter((p) => p.id !== id));
+  };
 
   return (
     <div>
@@ -50,7 +88,15 @@ export default function ProdutosPage() {
         </Button>
       </div>
 
-      {products.length === 0 ? (
+      {erro && (
+        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
+          {erro}
+        </p>
+      )}
+
+      {loading ? (
+        <LoadingState className="mt-6" />
+      ) : products.length === 0 ? (
         <EmptyState className="mt-6" title="Nenhum produto cadastrado" action={<Button onClick={startNew}>Adicionar produto</Button>} />
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -101,12 +147,18 @@ export default function ProdutosPage() {
 
 function ProductForm({ product, onSave }: { product: Product; onSave: (p: Product) => void }) {
   const [form, setForm] = useState(product);
+  const [saving, setSaving] = useState(false);
   return (
     <form
       className="flex flex-col gap-4"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        onSave(form);
+        setSaving(true);
+        try {
+          await onSave(form);
+        } finally {
+          setSaving(false);
+        }
       }}
     >
       <Input label="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
@@ -141,8 +193,8 @@ function ProductForm({ product, onSave }: { product: Product; onSave: (p: Produc
         />
         Produto ativo
       </label>
-      <Button type="submit" fullWidth>
-        Salvar produto
+      <Button type="submit" fullWidth disabled={saving}>
+        {saving ? "Salvando..." : "Salvar produto"}
       </Button>
     </form>
   );

@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Plus, Pencil, PauseCircle, PlayCircle } from "lucide-react";
-import { Button, Modal, Input, Textarea, EmptyState, Badge } from "@/components/ui";
-import { useCurrentCompany } from "@/lib/useCurrentCompany";
-import { getPromotionsByCompany } from "@/mocks/promotions";
+import { Button, Modal, Input, Textarea, EmptyState, Badge, LoadingState } from "@/components/ui";
+import { useAuth } from "@/context/AuthContext";
 import { Promotion, PromotionStatus } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -17,15 +16,34 @@ const statusVariant: Record<PromotionStatus, "success" | "warning" | "outline" |
 };
 
 export default function PromocoesPage() {
-  const company = useCurrentCompany();
-  const [promotions, setPromotions] = useState<Promotion[]>(() => getPromotionsByCompany(company.id));
+  const { token } = useAuth();
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Promotion | null>(null);
   const [open, setOpen] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    fetch("/api/painel/promotions", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((json) => {
+        if (!cancelled && json?.success) setPromotions(json.data);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const startNew = () => {
     setEditing({
-      id: `new-${Date.now()}`,
-      companyId: company.id,
+      id: "",
+      companyId: "",
       titulo: "",
       descricao: "",
       imagemUrl: "https://picsum.photos/seed/nova-promo/500/300",
@@ -38,20 +56,39 @@ export default function PromocoesPage() {
     setOpen(true);
   };
 
-  const save = (promo: Promotion) => {
+  const save = async (promo: Promotion) => {
+    if (!token) return;
+    setErro(null);
+    const isNew = !promo.id;
+    const res = await fetch(isNew ? "/api/painel/promotions" : `/api/painel/promotions/${promo.id}`, {
+      method: isNew ? "POST" : "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(promo),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.success) {
+      setErro(json?.error?.message ?? "Não foi possível salvar a promoção.");
+      return;
+    }
     setPromotions((prev) => {
-      const exists = prev.some((p) => p.id === promo.id);
-      return exists ? prev.map((p) => (p.id === promo.id ? promo : p)) : [promo, ...prev];
+      const exists = prev.some((p) => p.id === json.data.id);
+      return exists ? prev.map((p) => (p.id === json.data.id ? json.data : p)) : [json.data, ...prev];
     });
     setOpen(false);
   };
 
-  const toggleStatus = (id: string) => {
-    setPromotions((prev) =>
-      prev.map((p) =>
-        p.id === id ? { ...p, status: p.status === "desativada" ? "ativa" : "desativada" } : p
-      )
-    );
+  const toggleStatus = async (promo: Promotion) => {
+    if (!token) return;
+    const novoStatus = promo.status === "desativada" ? "ativa" : "desativada";
+    const res = await fetch(`/api/painel/promotions/${promo.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status: novoStatus }),
+    });
+    const json = await res.json().catch(() => null);
+    if (res.ok && json?.success) {
+      setPromotions((prev) => prev.map((p) => (p.id === promo.id ? json.data : p)));
+    }
   };
 
   return (
@@ -66,7 +103,15 @@ export default function PromocoesPage() {
         </Button>
       </div>
 
-      {promotions.length === 0 ? (
+      {erro && (
+        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
+          {erro}
+        </p>
+      )}
+
+      {loading ? (
+        <LoadingState className="mt-6" />
+      ) : promotions.length === 0 ? (
         <EmptyState className="mt-6" title="Nenhuma promoção cadastrada" action={<Button onClick={startNew}>Criar promoção</Button>} />
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -103,7 +148,7 @@ export default function PromocoesPage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => toggleStatus(p.id)}
+                    onClick={() => toggleStatus(p)}
                     icon={p.status === "desativada" ? <PlayCircle size={14} /> : <PauseCircle size={14} />}
                   />
                 </div>
@@ -122,12 +167,18 @@ export default function PromocoesPage() {
 
 function PromotionForm({ promotion, onSave }: { promotion: Promotion; onSave: (p: Promotion) => void }) {
   const [form, setForm] = useState(promotion);
+  const [saving, setSaving] = useState(false);
   return (
     <form
       className="flex flex-col gap-4"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        onSave(form);
+        setSaving(true);
+        try {
+          await onSave(form);
+        } finally {
+          setSaving(false);
+        }
       }}
     >
       <Input label="Título" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} required />
@@ -167,8 +218,8 @@ function PromotionForm({ promotion, onSave }: { promotion: Promotion; onSave: (p
           onChange={(e) => setForm({ ...form, precoPromocional: Number(e.target.value) })}
         />
       </div>
-      <Button type="submit" fullWidth>
-        Salvar promoção
+      <Button type="submit" fullWidth disabled={saving}>
+        {saving ? "Salvando..." : "Salvar promoção"}
       </Button>
     </form>
   );

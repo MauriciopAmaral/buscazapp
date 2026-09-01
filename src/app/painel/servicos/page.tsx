@@ -1,24 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { Button, Modal, Input, Textarea, EmptyState } from "@/components/ui";
-import { useCurrentCompany } from "@/lib/useCurrentCompany";
-import { getServicesByCompany } from "@/mocks/offerings";
+import { Button, Modal, Input, Textarea, EmptyState, LoadingState } from "@/components/ui";
+import { useAuth } from "@/context/AuthContext";
 import { Service } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 
 export default function ServicosPage() {
-  const company = useCurrentCompany();
-  const [services, setServices] = useState<Service[]>(() => getServicesByCompany(company.id));
+  const { token } = useAuth();
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Service | null>(null);
   const [open, setOpen] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    fetch("/api/painel/services", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((json) => {
+        if (!cancelled && json?.success) setServices(json.data);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const startNew = () => {
     setEditing({
-      id: `new-${Date.now()}`,
-      companyId: company.id,
+      id: "",
+      companyId: "",
       nome: "",
       descricao: "",
       precoInicial: 0,
@@ -27,15 +45,35 @@ export default function ServicosPage() {
     setOpen(true);
   };
 
-  const save = (service: Service) => {
+  const save = async (service: Service) => {
+    if (!token) return;
+    setErro(null);
+    const isNew = !service.id;
+    const res = await fetch(isNew ? "/api/painel/services" : `/api/painel/services/${service.id}`, {
+      method: isNew ? "POST" : "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(service),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.success) {
+      setErro(json?.error?.message ?? "Não foi possível salvar o serviço.");
+      return;
+    }
     setServices((prev) => {
-      const exists = prev.some((s) => s.id === service.id);
-      return exists ? prev.map((s) => (s.id === service.id ? service : s)) : [service, ...prev];
+      const exists = prev.some((s) => s.id === json.data.id);
+      return exists ? prev.map((s) => (s.id === json.data.id ? json.data : s)) : [json.data, ...prev];
     });
     setOpen(false);
   };
 
-  const remove = (id: string) => setServices((prev) => prev.filter((s) => s.id !== id));
+  const remove = async (id: string) => {
+    if (!token) return;
+    const res = await fetch(`/api/painel/services/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setServices((prev) => prev.filter((s) => s.id !== id));
+  };
 
   return (
     <div>
@@ -49,7 +87,15 @@ export default function ServicosPage() {
         </Button>
       </div>
 
-      {services.length === 0 ? (
+      {erro && (
+        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
+          {erro}
+        </p>
+      )}
+
+      {loading ? (
+        <LoadingState className="mt-6" />
+      ) : services.length === 0 ? (
         <EmptyState className="mt-6" title="Nenhum serviço cadastrado" action={<Button onClick={startNew}>Adicionar serviço</Button>} />
       ) : (
         <div className="mt-6 flex flex-col gap-3">
@@ -89,12 +135,18 @@ export default function ServicosPage() {
 
 function ServiceForm({ service, onSave }: { service: Service; onSave: (s: Service) => void }) {
   const [form, setForm] = useState(service);
+  const [saving, setSaving] = useState(false);
   return (
     <form
       className="flex flex-col gap-4"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        onSave(form);
+        setSaving(true);
+        try {
+          await onSave(form);
+        } finally {
+          setSaving(false);
+        }
       }}
     >
       <Input label="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
@@ -111,8 +163,8 @@ function ServiceForm({ service, onSave }: { service: Service; onSave: (s: Servic
         value={form.precoInicial}
         onChange={(e) => setForm({ ...form, precoInicial: Number(e.target.value) })}
       />
-      <Button type="submit" fullWidth>
-        Salvar serviço
+      <Button type="submit" fullWidth disabled={saving}>
+        {saving ? "Salvando..." : "Salvar serviço"}
       </Button>
     </form>
   );

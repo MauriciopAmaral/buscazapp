@@ -1,29 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Star, Send } from "lucide-react";
-import { Button, EmptyState } from "@/components/ui";
-import { useCurrentCompany } from "@/lib/useCurrentCompany";
-import { getReviewsByCompany } from "@/mocks/reviews";
+import { Button, EmptyState, LoadingState } from "@/components/ui";
+import { useAuth } from "@/context/AuthContext";
 import { Review } from "@/types";
 import { formatDate } from "@/lib/utils";
 import Image from "next/image";
 
 export default function AvaliacoesPage() {
-  const company = useCurrentCompany();
-  const [reviews, setReviews] = useState<Review[]>(() => getReviewsByCompany(company.id));
+  const { token } = useAuth();
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [sending, setSending] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    fetch("/api/painel/reviews", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((json) => {
+        if (!cancelled && json?.success) setReviews(json.data);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const media =
     reviews.length > 0 ? (reviews.reduce((s, r) => s + r.nota, 0) / reviews.length).toFixed(1) : "0.0";
 
-  const responder = (id: string) => {
+  const responder = async (id: string) => {
     const texto = drafts[id];
-    if (!texto) return;
-    setReviews((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, resposta: { texto, data: new Date().toISOString() } } : r))
-    );
-    setDrafts((prev) => ({ ...prev, [id]: "" }));
+    if (!texto || !token) return;
+    setSending(id);
+    try {
+      const res = await fetch(`/api/painel/reviews/${id}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ texto }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.success) {
+        setReviews((prev) => prev.map((r) => (r.id === id ? json.data : r)));
+        setDrafts((prev) => ({ ...prev, [id]: "" }));
+      }
+    } finally {
+      setSending(null);
+    }
   };
 
   return (
@@ -40,7 +69,9 @@ export default function AvaliacoesPage() {
         </div>
       </div>
 
-      {reviews.length === 0 ? (
+      {loading ? (
+        <LoadingState className="mt-6" rows={2} />
+      ) : reviews.length === 0 ? (
         <EmptyState className="mt-6" title="Nenhuma avaliação recebida ainda" />
       ) : (
         <div className="mt-6 flex flex-col gap-3">
@@ -75,7 +106,7 @@ export default function AvaliacoesPage() {
                         placeholder="Responder avaliação..."
                         className="flex-1 rounded-xl border border-ink-200 px-3 py-2 text-xs outline-none focus:border-brand-500"
                       />
-                      <Button size="sm" icon={<Send size={13} />} onClick={() => responder(r.id)}>
+                      <Button size="sm" icon={<Send size={13} />} onClick={() => responder(r.id)} disabled={sending === r.id}>
                         Enviar
                       </Button>
                     </div>

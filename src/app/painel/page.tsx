@@ -1,14 +1,36 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Eye, MessageCircle, Users, Ticket, Star, ImagePlus, Clock, ListChecks } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, XAxis, Tooltip, CartesianGrid } from "recharts";
-import { MetricCard } from "@/components/ui";
-import { useCurrentCompany } from "@/lib/useCurrentCompany";
-import { getAnalyticsByCompany } from "@/mocks/analytics";
+import { MetricCard, LoadingState } from "@/components/ui";
+import { useAuth } from "@/context/AuthContext";
+import { useCurrentCompanyLive } from "@/lib/useCurrentCompany";
+import { CompanyAnalytics } from "@/types";
 
 export default function PainelDashboardPage() {
-  const company = useCurrentCompany();
-  const analytics = getAnalyticsByCompany(company.id);
+  const { token } = useAuth();
+  const { company, loading: loadingCompany } = useCurrentCompanyLive();
+  const [analytics, setAnalytics] = useState<CompanyAnalytics | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    fetch("/api/painel/analytics", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((json) => {
+        if (!cancelled && json?.success) setAnalytics(json.data);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoadingAnalytics(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
   const serie = analytics?.serieDiaria.slice(-30) ?? [];
 
   const completude = 75;
@@ -18,6 +40,17 @@ export default function PainelDashboardPage() {
     { icon: <ListChecks size={16} />, label: "Cadastre seus serviços" },
   ];
 
+  if (loadingCompany || loadingAnalytics) return <LoadingState rows={2} />;
+
+  if (!company) {
+    return (
+      <p className="text-sm text-red-600">
+        Essa conta ainda não está vinculada a uma empresa no banco. Reivindique um perfil ou peça pra um
+        administrador vincular sua conta.
+      </p>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -26,10 +59,10 @@ export default function PainelDashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <MetricCard label="Visualizações" value={analytics?.visualizacoes ?? 1240} icon={<Eye size={16} />} trend={8} />
-        <MetricCard label="Cliques no WhatsApp" value={analytics?.cliquesWhatsapp ?? 287} icon={<MessageCircle size={16} />} trend={12} />
-        <MetricCard label="Leads" value={analytics?.leads ?? 93} icon={<Users size={16} />} trend={4} />
-        <MetricCard label="Cupons utilizados" value={analytics?.cuponsUtilizados ?? 46} icon={<Ticket size={16} />} trend={-2} />
+        <MetricCard label="Visualizações" value={analytics?.visualizacoes ?? 0} icon={<Eye size={16} />} />
+        <MetricCard label="Cliques no WhatsApp" value={analytics?.cliquesWhatsapp ?? 0} icon={<MessageCircle size={16} />} />
+        <MetricCard label="Leads" value={analytics?.leads ?? 0} icon={<Users size={16} />} />
+        <MetricCard label="Cupons utilizados" value={analytics?.cuponsUtilizados ?? 0} icon={<Ticket size={16} />} />
         <MetricCard label="Avaliação" value={company.avaliacaoMedia.toFixed(1)} icon={<Star size={16} />} />
       </div>
 

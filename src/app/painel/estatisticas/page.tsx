@@ -1,23 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
-import { Select, MetricCard } from "@/components/ui";
+import { Select, MetricCard, LoadingState } from "@/components/ui";
 import { Eye, MessageCircle, Percent, Ticket, Tag, Users } from "lucide-react";
-import { useCurrentCompany } from "@/lib/useCurrentCompany";
-import { getAnalyticsByCompany } from "@/mocks/analytics";
-import { getPromotionsByCompany } from "@/mocks/promotions";
+import { useAuth } from "@/context/AuthContext";
+import { CompanyAnalytics, Promotion } from "@/types";
 
 export default function EstatisticasPage() {
-  const company = useCurrentCompany();
-  const analytics = getAnalyticsByCompany(company.id);
-  const promotions = getPromotionsByCompany(company.id);
+  const { token } = useAuth();
+  const [analytics, setAnalytics] = useState<CompanyAnalytics | null>(null);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState("30");
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    Promise.all([
+      fetch("/api/painel/analytics", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+      fetch("/api/painel/promotions", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
+    ])
+      .then(([analyticsJson, promotionsJson]) => {
+        if (cancelled) return;
+        if (analyticsJson?.success) setAnalytics(analyticsJson.data);
+        if (promotionsJson?.success) setPromotions(promotionsJson.data);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const serie = analytics?.serieDiaria.slice(-Number(periodo)) ?? [];
   const conversao = analytics
     ? ((analytics.leads / Math.max(analytics.visualizacoes, 1)) * 100).toFixed(1)
     : "0.0";
+  const ofertasAtivas = promotions.filter((p) => p.status === "ativa").length;
+
+  if (loading) return <LoadingState rows={2} />;
 
   return (
     <div>
@@ -38,7 +62,7 @@ export default function EstatisticasPage() {
         <MetricCard label="Cliques" value={analytics?.cliquesWhatsapp ?? 0} icon={<MessageCircle size={16} />} />
         <MetricCard label="Conversão" value={`${conversao}%`} icon={<Percent size={16} />} />
         <MetricCard label="Cupons" value={analytics?.cuponsUtilizados ?? 0} icon={<Ticket size={16} />} />
-        <MetricCard label="Ofertas ativas" value={promotions.filter((p) => p.status === "ativa").length} icon={<Tag size={16} />} />
+        <MetricCard label="Ofertas ativas" value={ofertasAtivas} icon={<Tag size={16} />} />
         <MetricCard label="Leads" value={analytics?.leads ?? 0} icon={<Users size={16} />} />
       </div>
 

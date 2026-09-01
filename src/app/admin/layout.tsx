@@ -4,6 +4,7 @@ import {
   Target, FileBarChart, Settings,
 } from "lucide-react";
 import { Sidebar, SidebarItem } from "@/components/layout/Sidebar";
+import { RequireRole } from "@/components/auth/RequireRole";
 
 const items: SidebarItem[] = [
   { href: "/admin", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
@@ -28,8 +29,10 @@ const items: SidebarItem[] = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Sidebar items={items} title="Administração" badge="Admin" switchHref="/" switchLabel="Ver site público">
-      {children}
-    </Sidebar>
+    <RequireRole role="admin">
+      <Sidebar items={items} title="Administração" badge="Admin" switchHref="/" switchLabel="Ver site público">
+        {children}
+      </Sidebar>
+    </RequireRole>
   );
 }
