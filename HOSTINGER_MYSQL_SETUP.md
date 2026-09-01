@@ -243,6 +243,8 @@ Em vez de contratar um serviço externo (Cloudflare R2, S3, Uploadthing etc.), o
 
 Enquanto essas variáveis não estiverem configuradas, o botão de upload mostra erro ao tentar enviar — o resto do site continua funcionando normalmente.
 
+**Erro comum: "Hostname/IP does not match certificate's altnames"** — acontece quando `FTP_HOST` é o IP do servidor (em vez de um nome de domínio) e a conexão usa FTPS (padrão). O certificado TLS que a Hostinger apresenta foi emitido pro domínio do servidor, não pro IP, então a verificação de certificado falha. A correção já está no código: por padrão a verificação estrita fica desligada (variável `FTP_TLS_REJECT_UNAUTHORIZED="false"`, que é o padrão mesmo se você não definir nada). Se ainda assim quiser validação total do certificado, use o hostname do servidor FTP (não o IP) em `FTP_HOST`.
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — cada tela restante (cidades, bairros, planos, cupons/promoções em massa, financeiro, relatórios, prospecção, anúncios, usuários) precisa de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies`.

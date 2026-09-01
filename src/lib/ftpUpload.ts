@@ -12,6 +12,12 @@
 //   FTP_BASE_PATH — pasta remota onde salvar (padrão: /public_html/uploads)
 //   FTP_SECURE — "false" pra desligar FTPS (padrão: ligado)
 //   FTP_PORT — porta do servidor FTP (padrão: 21)
+//   FTP_TLS_REJECT_UNAUTHORIZED — "true" pra exigir que o certificado TLS bata
+//     exatamente com o host usado na conexão (padrão: desligado). A maioria das
+//     hospedagens compartilhadas (Hostinger inclusive) serve um certificado
+//     emitido pro domínio principal do servidor, não pro IP — então conectar
+//     por IP com FTPS normalmente dá erro "Hostname/IP does not match
+//     certificate's altnames" a menos que essa checagem fique desligada.
 
 import { Client } from "basic-ftp";
 import { Readable } from "stream";
@@ -45,6 +51,7 @@ export async function uploadFileToHostinger({ buffer, remotePath }: UploadParams
   const basePath = (env("FTP_BASE_PATH") ?? "/public_html/uploads").replace(/\/+$/, "");
   const secure = env("FTP_SECURE") !== "false";
   const port = env("FTP_PORT") ? Number(env("FTP_PORT")) : undefined;
+  const secureOptions = { rejectUnauthorized: env("FTP_TLS_REJECT_UNAUTHORIZED") === "true" };
   const publicBaseUrl = env("UPLOADS_PUBLIC_URL")!.replace(/\/+$/, "");
 
   const segments = remotePath.split("/").filter(Boolean);
@@ -55,7 +62,7 @@ export async function uploadFileToHostinger({ buffer, remotePath }: UploadParams
   const client = new Client();
   client.ftp.verbose = false;
   try {
-    await client.access({ host, user, password, secure, port });
+    await client.access({ host, user, password, secure, port, secureOptions });
     await client.ensureDir(remoteDir);
     await client.uploadFrom(Readable.from(buffer), fileName);
   } finally {
@@ -75,11 +82,12 @@ export async function deleteFileFromHostinger(remotePath: string): Promise<void>
   const basePath = (env("FTP_BASE_PATH") ?? "/public_html/uploads").replace(/\/+$/, "");
   const secure = env("FTP_SECURE") !== "false";
   const port = env("FTP_PORT") ? Number(env("FTP_PORT")) : undefined;
+  const secureOptions = { rejectUnauthorized: env("FTP_TLS_REJECT_UNAUTHORIZED") === "true" };
 
   const client = new Client();
   client.ftp.verbose = false;
   try {
-    await client.access({ host, user, password, secure, port });
+    await client.access({ host, user, password, secure, port, secureOptions });
     await client.remove(`${basePath}/${remotePath.replace(/^\/+/, "")}`);
   } catch {
     // Se o arquivo já não existir ou o FTP falhar, não interrompe a exclusão no banco.

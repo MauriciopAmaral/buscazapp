@@ -56,6 +56,7 @@ function describeFtpError(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
   const lower = message.toLowerCase();
 
+  if (lower.includes("altnames") || lower.includes("certificate")) return "O certificado TLS do servidor FTP não bate com o host usado na conexão (comum ao conectar por IP) — ajuste FTP_TLS_REJECT_UNAUTHORIZED ou use o hostname do servidor em vez do IP.";
   if (lower.includes("530")) return "Usuário ou senha FTP incorretos (verifique FTP_USER/FTP_PASSWORD).";
   if (lower.includes("timeout")) return "Não conseguiu conectar no servidor FTP (tempo esgotado) — verifique FTP_HOST/FTP_PORT e se o firewall da hospedagem permite conexões externas.";
   if (lower.includes("econnrefused")) return "Conexão recusada pelo servidor FTP — verifique FTP_HOST e FTP_PORT.";
