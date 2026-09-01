@@ -217,10 +217,36 @@ O que **continua** com dados fictícios, porque a API correspondente ainda não 
 - Todo o resto do admin: usuários, cidades/bairros/estados, categorias, cupons, promoções, planos, financeiro, relatórios, prospecção, anúncios, empresas não reivindicadas.
 - Upload de imagem de verdade (logo/capa/galeria/fotos de produto continuam sendo só texto de URL).
 
+## Atualização: upload de fotos usando a própria hospedagem Hostinger
+
+Em vez de contratar um serviço externo (Cloudflare R2, S3, Uploadthing etc.), o upload de imagens agora usa **a mesma hospedagem Hostinger que já hospeda o banco**, via FTP. Quando a empresa envia uma foto (logo, capa, galeria — e no futuro produtos/serviços), o servidor da Vercel conecta na sua hospedagem por FTP, salva o arquivo numa pasta organizada por empresa e grava só o **caminho/URL** no banco. Quando alguém visita o site, a imagem é servida direto do seu domínio Hostinger (`https://seudominio.com.br/uploads/...`), sem precisar de nenhum serviço pago.
+
+**O que foi feito no código:**
+
+- `src/lib/ftpUpload.ts` — conecta na hospedagem via FTP/FTPS (biblioteca `basic-ftp`) e sobe/apaga arquivos.
+- `POST /api/painel/upload` — recebe o arquivo (jpg/png/webp, até 4MB), organiza em `uploads/empresas/{id-da-empresa}/{pasta}/...` e devolve a URL pública.
+- `GET`/`POST /api/painel/gallery` e `DELETE /api/painel/gallery/[id]` — CRUD da galeria de fotos da empresa.
+- `PATCH /api/painel/company` — agora também aceita `logoUrl` e `capaUrl`.
+- Tela **Painel → Fotos** (`/painel/fotos`) passou a ser real: trocar logo, trocar capa e gerenciar a galeria de fotos, tudo enviando pro seu Hostinger e salvando no banco.
+
+**O que falta você fazer (preciso disso pra ativar):**
+
+1. **Criar (ou reaproveitar) uma pasta pública pra uploads no seu Hostinger.** No hPanel, dentro do `public_html` do domínio, crie uma pasta chamada `uploads` (ou o nome que preferir) — ela precisa ficar acessível por HTTPS, então algo como `public_html/uploads`.
+2. **Criar uma conta FTP com acesso a essa pasta.** No hPanel, vá em **Arquivos → Contas FTP**, crie uma nova conta (pode ser restrita só à pasta `uploads`, por segurança) e anote: host FTP (geralmente aparece na própria tela, algo como `ftp.seudominio.com.br` ou o IP do servidor), usuário e senha.
+3. **Me passar (ou preencher direto no `.env` e nas variáveis da Vercel) esses 4 valores:**
+   - `FTP_HOST` — o host FTP anotado no passo 2.
+   - `FTP_USER` — o usuário FTP.
+   - `FTP_PASSWORD` — a senha FTP.
+   - `UPLOADS_PUBLIC_URL` — a URL pública da mesma pasta, por exemplo `https://seudominio.com.br/uploads`.
+   - (Opcional) `FTP_BASE_PATH` — só se a pasta dentro da conta FTP não for `/public_html/uploads` (por exemplo, se a conta FTP já "cai" direto dentro da pasta `uploads`, o caminho pode ser só `/`).
+4. **Adicionar essas mesmas variáveis na Vercel** (Project Settings → Environment Variables) — sem isso o upload funciona local mas falha em produção. Depois de adicionar, é preciso fazer um novo deploy (ou "Redeploy") pra elas passarem a valer.
+
+Enquanto essas variáveis não estiverem configuradas, o botão de upload mostra erro ao tentar enviar — o resto do site continua funcionando normalmente.
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — cada tela restante (cidades, bairros, planos, cupons/promoções em massa, financeiro, relatórios, prospecção, anúncios, usuários) precisa de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies`.
-2. **Upload de imagens de verdade** — normalmente usando um serviço como Cloudflare R2, S3 ou Uploadthing, já que a Hostinger compartilhada não é ideal para isso. Preciso que você crie a conta nesse serviço e me passe as chaves de acesso pra eu integrar.
+2. **Ligar o upload de fotos nos formulários de produtos e serviços** — hoje eles ainda usam uma URL de imagem de placeholder; o componente de upload (`ImageUploadField`) já existe e pode ser reaproveitado lá.
 3. **Validação de verdade na reivindicação de perfil** (enviar código por e-mail/SMS real) — precisa de um serviço de envio (ex: Resend pra e-mail, alguma API de SMS) configurado com chave de API.
 
-Me diz por qual desses quer que eu continue.
+Me diz por qual desses quer que eu continue — ou me passa as credenciais de FTP do item acima que eu já deixo o upload de fotos funcionando em produção.

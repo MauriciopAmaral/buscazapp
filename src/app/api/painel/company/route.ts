@@ -45,6 +45,8 @@ export async function PATCH(request: NextRequest) {
       "email",
       "instagram",
       "site",
+      "logoUrl",
+      "capaUrl",
     ] as const;
 
     const data: Record<string, string> = {};
