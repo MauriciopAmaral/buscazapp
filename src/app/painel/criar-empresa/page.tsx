@@ -144,7 +144,7 @@ export default function CriarEmpresaPage() {
             <Input label="Nome fantasia" value={form.nomeFantasia} onChange={setField("nomeFantasia")} required />
             <Input label="Razão social" value={form.razaoSocial} onChange={setField("razaoSocial")} required />
             <Input
-              label="CNPJ OU CPF"
+              label="CNPJ"
               value={form.cnpj}
               onChange={setField("cnpj")}
               placeholder="00.000.000/0000-00"

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Plus, Pencil, PauseCircle, PlayCircle } from "lucide-react";
 import { Button, Modal, Input, Textarea, EmptyState, Badge, LoadingState } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
+import { ImageUploadField } from "@/components/painel/ImageUploadField";
 import { Promotion, PromotionStatus } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -166,6 +167,7 @@ export default function PromocoesPage() {
 }
 
 function PromotionForm({ promotion, onSave }: { promotion: Promotion; onSave: (p: Promotion) => void }) {
+  const { token } = useAuth();
   const [form, setForm] = useState(promotion);
   const [saving, setSaving] = useState(false);
   return (
@@ -181,6 +183,17 @@ function PromotionForm({ promotion, onSave }: { promotion: Promotion; onSave: (p
         }
       }}
     >
+      <div className="flex items-center gap-4">
+        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-ink-200 bg-ink-50">
+          <Image src={form.imagemUrl} alt="" fill className="object-cover" unoptimized />
+        </div>
+        <ImageUploadField
+          token={token}
+          pasta="promocoes"
+          label="Trocar foto"
+          onUploaded={(url) => setForm((f) => ({ ...f, imagemUrl: url }))}
+        />
+      </div>
       <Input label="Título" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} required />
       <Textarea
         label="Descrição"

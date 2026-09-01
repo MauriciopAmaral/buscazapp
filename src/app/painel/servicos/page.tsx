@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button, Modal, Input, Textarea, EmptyState, LoadingState } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
+import { ImageUploadField } from "@/components/painel/ImageUploadField";
 import { Service } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -134,6 +135,7 @@ export default function ServicosPage() {
 }
 
 function ServiceForm({ service, onSave }: { service: Service; onSave: (s: Service) => void }) {
+  const { token } = useAuth();
   const [form, setForm] = useState(service);
   const [saving, setSaving] = useState(false);
   return (
@@ -149,6 +151,17 @@ function ServiceForm({ service, onSave }: { service: Service; onSave: (s: Servic
         }
       }}
     >
+      <div className="flex items-center gap-4">
+        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-ink-200 bg-ink-50">
+          <Image src={form.imagemUrl} alt="" fill className="object-cover" unoptimized />
+        </div>
+        <ImageUploadField
+          token={token}
+          pasta="servicos"
+          label="Trocar foto"
+          onUploaded={(url) => setForm((f) => ({ ...f, imagemUrl: url }))}
+        />
+      </div>
       <Input label="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
       <Textarea
         label="Descrição"
