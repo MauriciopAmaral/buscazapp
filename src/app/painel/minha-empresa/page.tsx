@@ -5,6 +5,7 @@ import { Save } from "lucide-react";
 import { Input, Textarea, Select, Button, LoadingState } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { useCurrentCompanyLive } from "@/lib/useCurrentCompany";
+import { NoCompanyState } from "@/components/painel/NoCompanyState";
 import { categories } from "@/mocks/categories";
 import { HorariosEditor } from "./HorariosEditor";
 
@@ -82,10 +83,9 @@ export default function MinhaEmpresaPage() {
     return (
       <div className="max-w-3xl">
         <h1 className="text-xl font-bold text-ink-900 sm:text-2xl">Minha empresa</h1>
-        <p className="mt-2 text-sm text-red-600">
-          Essa conta ainda não está vinculada a uma empresa no banco. Reivindique um perfil ou peça pra um
-          administrador vincular sua conta.
-        </p>
+        <div className="mt-6">
+          <NoCompanyState />
+        </div>
       </div>
     );
   }

@@ -5,6 +5,7 @@ import { X, ImagePlus, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCurrentCompanyLive } from "@/lib/useCurrentCompany";
 import { ImageUploadField } from "@/components/painel/ImageUploadField";
+import { NoCompanyState } from "@/components/painel/NoCompanyState";
 import { LoadingState } from "@/components/ui";
 import { useCallback, useEffect, useState } from "react";
 
@@ -110,12 +111,7 @@ export default function FotosPage() {
   }
 
   if (!company) {
-    return (
-      <p className="text-sm text-red-600">
-        Essa conta ainda não está vinculada a uma empresa no banco. Reivindique um perfil ou peça pra um
-        administrador vincular sua conta.
-      </p>
-    );
+    return <NoCompanyState />;
   }
 
   return (

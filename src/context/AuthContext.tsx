@@ -17,6 +17,13 @@ interface AuthContextValue {
   /** Atalho de desenvolvimento: loga com uma das contas de teste já semeadas no banco. */
   loginAs: (role: UserRole) => Promise<{ ok: true } | { ok: false; error: string }>;
   logout: () => void;
+  /**
+   * Atualiza a sessão com um token/usuário novos vindos de outra rota que não
+   * seja /auth/login ou /auth/register — hoje usado depois de criar uma
+   * empresa (POST /api/painel/company/create), que devolve um token novo já
+   * com o companyId embutido, já que o token antigo não tem esse campo.
+   */
+  setSession: (token: string, user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -157,9 +164,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const setSession: AuthContextValue["setSession"] = (newToken, newUser) => {
+    persist(newToken, newUser);
+  };
+
   const value = useMemo(
-    () => ({ user, token, isLoading, login, register, loginAs, logout }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- login/register/loginAs/logout são recriadas a cada render mas não dependem de nada além do setState estável
+    () => ({ user, token, isLoading, login, register, loginAs, logout, setSession }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- login/register/loginAs/logout/setSession são recriadas a cada render mas não dependem de nada além do setState estável
     [user, token, isLoading]
   );
 

@@ -6,6 +6,7 @@ import { AreaChart, Area, ResponsiveContainer, XAxis, Tooltip, CartesianGrid } f
 import { MetricCard, LoadingState } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { useCurrentCompanyLive } from "@/lib/useCurrentCompany";
+import { NoCompanyState } from "@/components/painel/NoCompanyState";
 import { CompanyAnalytics } from "@/types";
 
 export default function PainelDashboardPage() {
@@ -43,12 +44,7 @@ export default function PainelDashboardPage() {
   if (loadingCompany || loadingAnalytics) return <LoadingState rows={2} />;
 
   if (!company) {
-    return (
-      <p className="text-sm text-red-600">
-        Essa conta ainda não está vinculada a uma empresa no banco. Reivindique um perfil ou peça pra um
-        administrador vincular sua conta.
-      </p>
-    );
+    return <NoCompanyState />;
   }
 
   return (

@@ -45,6 +45,23 @@ export async function POST(request: NextRequest) {
     return ok({ url });
   } catch (err) {
     console.error("[POST /api/painel/upload]", err);
-    return serverError("Não foi possível enviar a imagem.");
+    return serverError(`Não foi possível enviar a imagem. ${describeFtpError(err)}`);
   }
+}
+
+// Traduz o erro cru do FTP (basic-ftp) numa mensagem que dá pra agir —
+// sem isso, todo problema de FTP (senha errada, host errado, pasta sem
+// permissão, timeout) chegava pro usuário como a mesma frase genérica.
+function describeFtpError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  const lower = message.toLowerCase();
+
+  if (lower.includes("530")) return "Usuário ou senha FTP incorretos (verifique FTP_USER/FTP_PASSWORD).";
+  if (lower.includes("timeout")) return "Não conseguiu conectar no servidor FTP (tempo esgotado) — verifique FTP_HOST/FTP_PORT e se o firewall da hospedagem permite conexões externas.";
+  if (lower.includes("econnrefused")) return "Conexão recusada pelo servidor FTP — verifique FTP_HOST e FTP_PORT.";
+  if (lower.includes("enotfound") || lower.includes("getaddrinfo")) return "Endereço do servidor FTP não encontrado — verifique FTP_HOST.";
+  if (lower.includes("550") || lower.includes("permission") || lower.includes("553")) return "Sem permissão pra criar/gravar na pasta configurada — verifique FTP_BASE_PATH e as permissões da conta FTP.";
+  if (lower.includes("não está configurado") || lower.includes("nao esta configurado")) return message;
+
+  return `Detalhe técnico: ${message}`;
 }

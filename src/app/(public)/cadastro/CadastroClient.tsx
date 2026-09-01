@@ -43,7 +43,7 @@ export function CadastroClient() {
       setErro(result.error);
       return;
     }
-    router.push(tipo === "empresa" ? "/painel" : "/minha-conta");
+    router.push(tipo === "empresa" ? "/painel/criar-empresa" : "/minha-conta");
   };
 
   return (

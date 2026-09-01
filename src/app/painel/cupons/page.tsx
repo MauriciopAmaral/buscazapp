@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { Button, Modal, Input, Textarea, DataTable, Badge, LoadingState } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { useCurrentCompanyLive } from "@/lib/useCurrentCompany";
+import { NoCompanyState } from "@/components/painel/NoCompanyState";
 import { Coupon, CouponStatus } from "@/types";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -60,12 +61,7 @@ export default function CuponsPainelPage() {
   if (loadingCompany) return <LoadingState rows={1} />;
 
   if (!company) {
-    return (
-      <p className="text-sm text-red-600">
-        Essa conta ainda não está vinculada a uma empresa no banco. Reivindique um perfil ou peça pra um
-        administrador vincular sua conta.
-      </p>
-    );
+    return <NoCompanyState />;
   }
 
   return (
