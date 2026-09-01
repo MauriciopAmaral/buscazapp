@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ok, serverError } from "@/lib/apiResponse";
+import { companyListInclude, mapCompany } from "@/lib/companyData";
 
 // GET /api/companies?q=&cidade=&categoria=&avaliacaoMinima=&ordenarPor=&page=&pageSize=
 //
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
         orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
-        include: { categoria: true },
+        include: companyListInclude,
       }),
     ]);
 
@@ -58,29 +59,10 @@ export async function GET(request: NextRequest) {
       pageSize,
       total,
       totalPages: Math.max(1, Math.ceil(total / pageSize)),
-      empresas: companies.map((c) => ({
-        id: c.id,
-        slug: c.slug,
-        nomeFantasia: c.nomeFantasia,
-        logoUrl: c.logoUrl,
-        capaUrl: c.capaUrl,
-        categoriaId: c.categoriaId,
-        categoriaNome: c.categoria.nome,
-        avaliacaoMedia: c.avaliacaoMedia,
-        totalAvaliacoes: c.totalAvaliacoes,
-        verificado: c.verificado,
-        premium: c.premium,
-        patrocinada: c.patrocinada,
-        clubeParceiro: c.clubeParceiro,
-        cashbackPercentual: c.cashbackPercentual,
-        endereco: {
-          bairro: c.bairro,
-          cidade: c.cidadeNome,
-          estado: c.estado,
-          latitude: c.latitude,
-          longitude: c.longitude,
-        },
-      })),
+      // Formato completo (igual ao tipo `Company` do frontend) — assim o
+      // mesmo endpoint serve tanto o app mobile quanto as telas do site que
+      // já esperavam o objeto Company inteiro (ex: CompanyCard usa horarios).
+      empresas: companies.map((c) => mapCompany(c)),
     });
   } catch (err) {
     console.error("[GET /api/companies]", err);

@@ -2,19 +2,20 @@ import Link from "next/link";
 import { ArrowRight, Store } from "lucide-react";
 import { LinkButton, Badge } from "@/components/ui";
 import { CompanyCard, CategoryCard, OfferCard, CouponCard } from "@/components/domain";
-import { categories } from "@/mocks/categories";
-import { companies } from "@/mocks/companies";
-import { promotions } from "@/mocks/promotions";
-import { coupons } from "@/mocks/coupons";
+import { getCategories } from "@/lib/categoryData";
+import { getCompanies, getFeaturedCompanies, getActivePromotions, getActiveCoupons } from "@/lib/companyData";
 import { HomeSearchForm } from "./HomeSearchForm";
 import { NearbyCompanies } from "./NearbyCompanies";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [categories, nearbyCompanies, featuredCompanies, activePromotions, activeCoupons] = await Promise.all([
+    getCategories(),
+    getCompanies(8),
+    getFeaturedCompanies(6),
+    getActivePromotions(4),
+    getActiveCoupons(4),
+  ]);
   const popularCategories = categories.slice(0, 8);
-  const nearbyCompanies = companies.slice(0, 8);
-  const featuredCompanies = companies.filter((c) => c.premium).slice(0, 6);
-  const activePromotions = promotions.filter((p) => p.status === "ativa").slice(0, 4);
-  const activeCoupons = coupons.filter((c) => c.status === "ativo").slice(0, 4);
 
   return (
     <div>

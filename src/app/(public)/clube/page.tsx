@@ -1,11 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Utensils, Ticket, CheckCircle2, Sparkles } from "lucide-react";
 import { CompanyCard } from "@/components/domain";
-import { Badge, Button, EmptyState } from "@/components/ui";
+import { Badge, Button, EmptyState, LoadingState } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
-import { getClubPartners } from "@/mocks/companies";
+import { Company } from "@/types";
 
 const beneficios = [
   {
@@ -27,8 +28,25 @@ const beneficios = [
 
 export default function ClubePage() {
   const { user, loginAs } = useAuth();
-  const partners = getClubPartners();
+  const [partners, setPartners] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(true);
   const isAssinante = !!user && (user.clubeAssinante ?? false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/club/partners")
+      .then((r) => r.json())
+      .then((json) => {
+        if (!cancelled && json?.success) setPartners(json.data);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div>
@@ -78,7 +96,9 @@ export default function ClubePage() {
             {partners.length} empresas oferecem cupons exclusivos do Clube agora.
           </p>
           <div className="mt-4">
-            {partners.length === 0 ? (
+            {loading ? (
+              <LoadingState />
+            ) : partners.length === 0 ? (
               <EmptyState title="Nenhum parceiro ainda" description="Volte em breve para ver os restaurantes do Clube." />
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

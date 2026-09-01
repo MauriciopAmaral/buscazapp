@@ -4,15 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Star, MapPinned, LocateFixed, LoaderCircle } from "lucide-react";
 import { CompanyCard } from "@/components/domain";
-import { FilterBar, Select, EmptyState, Pagination, SearchInput, Button } from "@/components/ui";
-import { companies, cidadesPara } from "@/mocks/companies";
-import { categories } from "@/mocks/categories";
+import { FilterBar, Select, EmptyState, Pagination, SearchInput, Button, LoadingState } from "@/components/ui";
 import { neighborhoods, cities } from "@/mocks/locations";
-import { promotions } from "@/mocks/promotions";
-import { coupons } from "@/mocks/coupons";
 import { isCompanyOpenNow } from "@/lib/utils";
 import { useGeo } from "@/context/GeoContext";
 import { distanceKm } from "@/lib/geo";
+import { Category, Company, Coupon, Promotion } from "@/types";
 
 const PAGE_SIZE = 9;
 
@@ -29,6 +26,49 @@ export function BuscarClient() {
   const [ordenacao, setOrdenacao] = useState("relevancia");
   const [page, setPage] = useState(1);
   const { coords, status, requestLocation } = useGeo();
+
+  // Dados reais do banco, buscados uma vez na API — o filtro/ordenação abaixo
+  // continua rodando no navegador em cima desse conjunto, igual antes com os
+  // mocks. Bairros/cidades pro dropdown de filtro ainda vêm de src/mocks/locations
+  // (não existe endpoint de bairros/cidades na API ainda).
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [loadingDados, setLoadingDados] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function carregar() {
+      setLoadingDados(true);
+      try {
+        const [resCompanies, resCategories, resPromotions, resCoupons] = await Promise.all([
+          fetch("/api/companies?pageSize=50").then((r) => r.json()),
+          fetch("/api/categories").then((r) => r.json()),
+          fetch("/api/promotions").then((r) => r.json()),
+          fetch("/api/coupons").then((r) => r.json()),
+        ]);
+        if (cancelled) return;
+        if (resCompanies?.success) setCompanies(resCompanies.data.empresas);
+        if (resCategories?.success) setCategories(resCategories.data);
+        if (resPromotions?.success) setPromotions(resPromotions.data);
+        if (resCoupons?.success) setCoupons(resCoupons.data);
+      } catch {
+        // sem conexão: mantém listas vazias
+      } finally {
+        if (!cancelled) setLoadingDados(false);
+      }
+    }
+    carregar();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const cidadesPara = useMemo(
+    () => Array.from(new Set(companies.map((c) => c.endereco.cidade))).sort(),
+    [companies]
+  );
 
   // Assim que a localização é liberada, já ordena automaticamente por mais próximas.
   useEffect(() => {
@@ -91,7 +131,22 @@ export function BuscarClient() {
     list.sort((a, b) => Number(b.patrocinada) - Number(a.patrocinada));
 
     return list;
-  }, [termo, cidade, bairro, categoria, avaliacao, abertoAgora, comOfertas, comCupons, ordenacao, coords]);
+  }, [
+    companies,
+    categories,
+    promotions,
+    coupons,
+    termo,
+    cidade,
+    bairro,
+    categoria,
+    avaliacao,
+    abertoAgora,
+    comOfertas,
+    comCupons,
+    ordenacao,
+    coords,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
   const paginated = results.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -242,7 +297,9 @@ export function BuscarClient() {
       </FilterBar>
 
       <div className="mt-6">
-        {paginated.length === 0 ? (
+        {loadingDados ? (
+          <LoadingState />
+        ) : paginated.length === 0 ? (
           <EmptyState
             title="Nenhuma empresa encontrada"
             description="Tente ajustar os filtros ou buscar por outro termo."

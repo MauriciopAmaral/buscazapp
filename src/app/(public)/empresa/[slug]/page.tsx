@@ -5,19 +5,15 @@ import {
   CheckCircle2, Crown, Clock, Phone, AtSign, Globe, MessageCircle, Star, Utensils, Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui";
-import { companies, getCompanyBySlug } from "@/mocks/companies";
-import { getProductsByCompany, getServicesByCompany } from "@/mocks/offerings";
-import { getPromotionsByCompany } from "@/mocks/promotions";
-import { getCouponsByCompany } from "@/mocks/coupons";
-import { getReviewsByCompany } from "@/mocks/reviews";
+import { getCompanyDetailBySlug } from "@/lib/companyData";
 import { isCompanyOpenNow, whatsappLink } from "@/lib/utils";
 import { ClaimBanner } from "./ClaimBanner";
 import { CompanyTabs } from "./CompanyTabs";
 import { CompanyMapCard } from "./CompanyMapCard";
 
-export function generateStaticParams() {
-  return companies.map((c) => ({ slug: c.slug }));
-}
+// Sem generateStaticParams: a página é renderizada sob demanda (dynamic
+// rendering), buscando direto no banco a cada acesso — assim uma empresa
+// cadastrada agora aparece sem precisar de um novo build/deploy.
 
 const diaLabel: Record<string, string> = {
   segunda: "Segunda-feira",
@@ -31,14 +27,15 @@ const diaLabel: Record<string, string> = {
 
 export default async function CompanyPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const company = getCompanyBySlug(slug);
+  const company = await getCompanyDetailBySlug(slug);
   if (!company) notFound();
 
-  const products = getProductsByCompany(company.id);
-  const services = getServicesByCompany(company.id);
-  const promotions = getPromotionsByCompany(company.id).filter((p) => p.status === "ativa");
-  const coupons = getCouponsByCompany(company.id).filter((c) => c.status === "ativo");
-  const reviews = getReviewsByCompany(company.id);
+  // getCompanyDetailBySlug já filtra produtos ativos, promoções ativas e cupons ativos.
+  const products = company.produtos;
+  const services = company.servicos;
+  const promotions = company.promocoes;
+  const coupons = company.cupons;
+  const reviews = company.avaliacoes;
   const aberto = isCompanyOpenNow(company.horarios);
   const msg = `Olá! Vi o perfil de ${company.nomeFantasia} no BuscaZapp e gostaria de saber mais.`;
 

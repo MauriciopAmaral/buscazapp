@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
       saldo,
       extrato: transactions.map((t) => ({
         id: t.id,
+        userId: t.userId,
         companyId: t.companyId,
         companyNome: t.company.nomeFantasia,
         data: t.createdAt,

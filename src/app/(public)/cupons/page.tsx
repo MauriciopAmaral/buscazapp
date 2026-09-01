@@ -1,10 +1,10 @@
 import { CouponCard } from "@/components/domain";
-import { coupons } from "@/mocks/coupons";
+import { getActiveCoupons } from "@/lib/companyData";
 
 export const metadata = { title: "Cupons — BuscaZapp" };
 
-export default function CuponsPage() {
-  const ativos = coupons.filter((c) => c.status === "ativo");
+export default async function CuponsPage() {
+  const ativos = await getActiveCoupons();
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">

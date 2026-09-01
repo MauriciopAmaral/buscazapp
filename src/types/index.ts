@@ -95,6 +95,9 @@ export type PromotionStatus = "ativa" | "agendada" | "expirada" | "desativada";
 export interface Promotion {
   id: string;
   companyId: string;
+  /** Presente quando a promoção vem da API/banco — evita ter que procurar a empresa nos mocks. */
+  companyNome?: string;
+  companySlug?: string;
   titulo: string;
   descricao: string;
   imagemUrl: string;
@@ -110,6 +113,9 @@ export type CouponStatus = "ativo" | "expirado" | "utilizado" | "desativado";
 export interface Coupon {
   id: string;
   companyId: string;
+  /** Presente quando o cupom vem da API/banco — evita ter que procurar a empresa nos mocks. */
+  companyNome?: string;
+  companySlug?: string;
   titulo: string;
   descricao: string;
   codigo: string;

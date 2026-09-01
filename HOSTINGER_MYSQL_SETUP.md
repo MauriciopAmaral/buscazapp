@@ -186,11 +186,25 @@ E teste com o passo a passo em `API.md`.
 
 **Importante**: o site (as telas que você já usa) ainda está rodando com os dados mockados em `src/mocks/*` — a API já existe e já funciona, mas as telas ainda não foram trocadas pra consumir ela. Essa troca (página por página, usando os arquivos em `src/services/*.ts` como ponte) é o próximo passo.
 
+## Atualização: site conectado no banco de verdade
+
+As telas principais do site pararam de usar `src/mocks/*` e passaram a buscar direto no banco:
+
+- **Páginas de servidor** (`/`, `/categorias`, `/categoria/[slug]`, `/empresa/[slug]`, `/cupons`) buscam direto no Prisma através de `src/lib/companyData.ts` e `src/lib/categoryData.ts` — sem passar pela API, já que rodam no mesmo servidor.
+- **Páginas com filtro interativo** (`/buscar`, `/ofertas`, `/favoritos`, `/clube`, `/cashback`) chamam a API (`/api/companies`, `/api/categories`, `/api/promotions`, `/api/coupons`, `/api/club/partners`, `/api/cashback`) direto do navegador.
+- **Painel da empresa**: só as telas de **Minha empresa** (dados gerais + contato) e **Cupons** já leem/gravam no banco de verdade (`/api/painel/company`, `/api/painel/coupons`). Categoria, endereço e horário de funcionamento da empresa ainda aparecem mas não têm endpoint pra salvar ainda.
+
+O que **continua** usando dados fictícios (`src/mocks/*`), porque a API correspondente ainda não existe:
+
+- Painel da empresa: produtos, serviços, promoções, estatísticas, financeiro, assinatura, avaliações, leads, fotos, configurações.
+- Todo o **painel de admin** (`/admin/*`) — usuários, cidades/bairros/estados, categorias, cupons, promoções, planos, financeiro, relatórios, prospecção, reivindicações, anúncios.
+- O assistente de "Reivindicar perfil" continua simulando o envio de código (não existe backend de SMS/e-mail ainda).
+- Os selos de "com oferta"/"com cupom" nos cartões de empresa (`CompanyCard`) ainda comparam com os cupons/promoções fictícios — podem aparecer errados pra empresas reais até isso ser ajustado também.
+
 ## O que ainda falta (próxima etapa)
 
-1. **Conectar o site na API nova** — trocar, um por um, os arquivos de `src/services/*.ts` de "leem os mocks" para "chamam a API real" (o formato de dados foi desenhado igual de propósito, pra essa troca ser direta).
-2. **Endpoints de admin** (aprovar reivindicação, mudar status de empresa, etc.) — hoje só existe a parte de consumidor/empresa.
-3. **Upload de imagens de verdade** (hoje logo/capa/galeria são só URLs de placeholder) — normalmente usando um serviço como Cloudflare R2, S3 ou Uploadthing, já que a Hostinger compartilhada não é ideal para isso.
-4. **Deploy do Next.js** em algum lugar que rode Node.js (Vercel é o mais simples e tem plano gratuito) apontando pro mesmo banco MySQL da Hostinger — lembrando de configurar `DATABASE_URL` e `JWT_SECRET` nas variáveis de ambiente da Vercel.
+1. **Conectar o resto do painel da empresa e o painel de admin** — cada tela dessas precisa primeiro de um endpoint próprio na API (ex: `/api/painel/products`, `/api/admin/claims`, etc.), seguindo o mesmo padrão de `/api/painel/coupons`.
+2. **Upload de imagens de verdade** (hoje logo/capa/galeria são só URLs de placeholder) — normalmente usando um serviço como Cloudflare R2, S3 ou Uploadthing, já que a Hostinger compartilhada não é ideal para isso.
+3. **Deploy do Next.js** — já feito na Vercel, apontando pro banco MySQL da Hostinger.
 
 Me diz por qual desses quer que eu continue.

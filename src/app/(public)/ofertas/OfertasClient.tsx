@@ -1,16 +1,50 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { OfferCard } from "@/components/domain";
-import { FilterBar, Select, EmptyState } from "@/components/ui";
-import { promotions } from "@/mocks/promotions";
-import { categories } from "@/mocks/categories";
-import { cidadesPara, companies } from "@/mocks/companies";
+import { FilterBar, Select, EmptyState, LoadingState } from "@/components/ui";
+import { Category, Company, Promotion } from "@/types";
 
 export function OfertasClient() {
   const [categoria, setCategoria] = useState("");
   const [cidade, setCidade] = useState("");
   const [ordenacao, setOrdenacao] = useState("recentes");
+
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function carregar() {
+      setLoading(true);
+      try {
+        const [resPromotions, resCategories, resCompanies] = await Promise.all([
+          fetch("/api/promotions").then((r) => r.json()),
+          fetch("/api/categories").then((r) => r.json()),
+          fetch("/api/companies?pageSize=50").then((r) => r.json()),
+        ]);
+        if (cancelled) return;
+        if (resPromotions?.success) setPromotions(resPromotions.data);
+        if (resCategories?.success) setCategories(resCategories.data);
+        if (resCompanies?.success) setCompanies(resCompanies.data.empresas);
+      } catch {
+        // sem conexão: mantém listas vazias
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    carregar();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const cidadesPara = useMemo(
+    () => Array.from(new Set(companies.map((c) => c.endereco.cidade))).sort(),
+    [companies]
+  );
 
   const results = useMemo(() => {
     let list = promotions.filter((p) => p.status === "ativa");
@@ -40,7 +74,7 @@ export function OfertasClient() {
     }
 
     return list;
-  }, [categoria, cidade, ordenacao]);
+  }, [promotions, categories, companies, categoria, cidade, ordenacao]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
@@ -71,7 +105,9 @@ export function OfertasClient() {
       </FilterBar>
 
       <div className="mt-6">
-        {results.length === 0 ? (
+        {loading ? (
+          <LoadingState />
+        ) : results.length === 0 ? (
           <EmptyState title="Nenhuma oferta encontrada" description="Ajuste os filtros para ver mais resultados." />
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -1,9 +1,11 @@
 import { CategoryCard } from "@/components/domain";
-import { categories } from "@/mocks/categories";
+import { getCategories } from "@/lib/categoryData";
 
 export const metadata = { title: "Categorias — BuscaZapp" };
 
-export default function CategoriasPage() {
+export default async function CategoriasPage() {
+  const categories = await getCategories();
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <h1 className="text-2xl font-bold text-ink-900 sm:text-3xl">Todas as categorias</h1>

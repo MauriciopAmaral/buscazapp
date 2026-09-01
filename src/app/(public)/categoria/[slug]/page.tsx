@@ -3,19 +3,18 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { CompanyCard } from "@/components/domain";
 import { EmptyState } from "@/components/ui";
-import { getCategoryBySlug, categories } from "@/mocks/categories";
-import { getCompaniesByCategory } from "@/mocks/companies";
+import { getCategoryBySlug } from "@/lib/categoryData";
+import { getCompaniesByCategorySlug } from "@/lib/companyData";
 
-export function generateStaticParams() {
-  return categories.map((c) => ({ slug: c.slug }));
-}
-
+// Sem generateStaticParams: a página é renderizada sob demanda (dynamic
+// rendering), buscando direto no banco — assim novas categorias/empresas
+// aparecem sem precisar de um novo build.
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const category = getCategoryBySlug(slug);
+  const category = await getCategoryBySlug(slug);
   if (!category) notFound();
 
-  const companies = getCompaniesByCategory(category.id);
+  const companies = await getCompaniesByCategorySlug(slug);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">

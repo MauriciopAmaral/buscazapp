@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
-import { Button, Modal, Input, Textarea, DataTable, Badge } from "@/components/ui";
-import { useCurrentCompany } from "@/lib/useCurrentCompany";
-import { getCouponsByCompany } from "@/mocks/coupons";
+import { Button, Modal, Input, Textarea, DataTable, Badge, LoadingState } from "@/components/ui";
+import { useAuth } from "@/context/AuthContext";
+import { useCurrentCompanyLive } from "@/lib/useCurrentCompany";
 import { Coupon, CouponStatus } from "@/types";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -23,10 +23,32 @@ const tabs: { key: CouponStatus | "todos"; label: string }[] = [
 ];
 
 export default function CuponsPainelPage() {
-  const company = useCurrentCompany();
-  const [coupons, setCoupons] = useState<Coupon[]>(() => getCouponsByCompany(company.id));
+  const { token } = useAuth();
+  const { company, loading: loadingCompany } = useCurrentCompanyLive();
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(true);
   const [tab, setTab] = useState<CouponStatus | "todos">("todos");
   const [open, setOpen] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sinaliza início do carregamento dos cupons
+    setLoadingCoupons(true);
+    fetch("/api/painel/coupons", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((json) => {
+        if (!cancelled && json?.success) setCoupons(json.data);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoadingCoupons(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const filtered = tab === "todos" ? coupons : coupons.filter((c) => c.status === tab);
 
@@ -34,6 +56,17 @@ export default function CuponsPainelPage() {
     setCoupons((prev) => [coupon, ...prev]);
     setOpen(false);
   };
+
+  if (loadingCompany) return <LoadingState rows={1} />;
+
+  if (!company) {
+    return (
+      <p className="text-sm text-red-600">
+        Essa conta ainda não está vinculada a uma empresa no banco. Reivindique um perfil ou peça pra um
+        administrador vincular sua conta.
+      </p>
+    );
+  }
 
   return (
     <div>
@@ -62,30 +95,52 @@ export default function CuponsPainelPage() {
         ))}
       </div>
 
+      {erro && (
+        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
+          {erro}
+        </p>
+      )}
+
       <div className="mt-4">
-        <DataTable
-          data={filtered}
-          rowKey={(c) => c.id}
-          emptyTitle="Nenhum cupom nesta categoria"
-          columns={[
-            { key: "titulo", header: "Cupom", render: (c) => <span className="font-medium text-ink-900">{c.titulo}</span> },
-            { key: "codigo", header: "Código", render: (c) => <code className="text-xs">{c.codigo}</code> },
-            { key: "desconto", header: "Desconto", render: (c) => c.desconto },
-            { key: "validade", header: "Validade", render: (c) => formatDate(c.validade) },
-            { key: "uso", header: "Uso", render: (c) => `${c.utilizados}/${c.limite}` },
-            { key: "status", header: "Status", render: (c) => <Badge variant={statusVariant[c.status]}>{c.status}</Badge> },
-          ]}
-        />
+        {loadingCoupons ? (
+          <LoadingState rows={1} />
+        ) : (
+          <DataTable
+            data={filtered}
+            rowKey={(c) => c.id}
+            emptyTitle="Nenhum cupom nesta categoria"
+            columns={[
+              { key: "titulo", header: "Cupom", render: (c) => <span className="font-medium text-ink-900">{c.titulo}</span> },
+              { key: "codigo", header: "Código", render: (c) => <code className="text-xs">{c.codigo}</code> },
+              { key: "desconto", header: "Desconto", render: (c) => c.desconto },
+              { key: "validade", header: "Validade", render: (c) => formatDate(c.validade) },
+              { key: "uso", header: "Uso", render: (c) => `${c.utilizados}/${c.limite}` },
+              { key: "status", header: "Status", render: (c) => <Badge variant={statusVariant[c.status]}>{c.status}</Badge> },
+            ]}
+          />
+        )}
       </div>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Criar cupom">
-        <CouponForm companyId={company.id} onSave={create} />
+        <CouponForm
+          token={token}
+          onSave={create}
+          onError={setErro}
+        />
       </Modal>
     </div>
   );
 }
 
-function CouponForm({ companyId, onSave }: { companyId: string; onSave: (c: Coupon) => void }) {
+function CouponForm({
+  token,
+  onSave,
+  onError,
+}: {
+  token: string | null;
+  onSave: (c: Coupon) => void;
+  onError: (msg: string | null) => void;
+}) {
   const [form, setForm] = useState({
     titulo: "",
     descricao: "",
@@ -94,24 +149,31 @@ function CouponForm({ companyId, onSave }: { companyId: string; onSave: (c: Coup
     validade: "",
     limite: 50,
   });
+  const [saving, setSaving] = useState(false);
 
   return (
     <form
       className="flex flex-col gap-4"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        onSave({
-          id: `new-${Date.now()}`,
-          companyId,
-          titulo: form.titulo,
-          descricao: form.descricao,
-          codigo: form.codigo || "NOVOCUPOM",
-          desconto: form.desconto,
-          validade: form.validade,
-          limite: form.limite,
-          utilizados: 0,
-          status: "ativo",
-        });
+        if (!token) return;
+        setSaving(true);
+        onError(null);
+        try {
+          const res = await fetch("/api/painel/coupons", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ ...form, codigo: form.codigo || "NOVOCUPOM" }),
+          });
+          const json = await res.json().catch(() => null);
+          if (!res.ok || !json?.success) {
+            onError(json?.error?.message ?? "Não foi possível criar o cupom.");
+            return;
+          }
+          onSave(json.data);
+        } finally {
+          setSaving(false);
+        }
       }}
     >
       <Input label="Título" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} required />
@@ -139,8 +201,8 @@ function CouponForm({ companyId, onSave }: { companyId: string; onSave: (c: Coup
           onChange={(e) => setForm({ ...form, limite: Number(e.target.value) })}
         />
       </div>
-      <Button type="submit" fullWidth>
-        Criar cupom
+      <Button type="submit" fullWidth disabled={saving}>
+        {saving ? "Criando..." : "Criar cupom"}
       </Button>
     </form>
   );

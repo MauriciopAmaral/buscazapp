@@ -10,7 +10,11 @@ import { companies } from "@/mocks/companies";
 export function CouponCard({ coupon }: { coupon: Coupon }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const company = companies.find((c) => c.id === coupon.companyId);
+  // Cupons que vêm da API/banco já trazem o nome da empresa junto (evita ter
+  // que procurar no array de mocks, que só tem as empresas fictícias).
+  const company = coupon.companySlug
+    ? { nomeFantasia: coupon.companyNome ?? "" }
+    : companies.find((c) => c.id === coupon.companyId);
 
   const copy = () => {
     navigator.clipboard?.writeText(coupon.codigo).catch(() => undefined);

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserWithRole } from "@/lib/apiAuth";
 import { badRequest, forbidden, notFound, ok, serverError, unauthorized } from "@/lib/apiResponse";
+import { mapCompany } from "@/lib/companyData";
 
 // GET /api/painel/company — dados completos da empresa do usuário logado.
 export async function GET(request: NextRequest) {
@@ -12,11 +13,12 @@ export async function GET(request: NextRequest) {
 
     const company = await prisma.company.findUnique({
       where: { id: auth.companyId },
-      include: { horarios: true, galeria: true, categoria: true },
+      include: { horarios: true, galeria: { orderBy: { ordem: "asc" } }, categoria: true },
     });
     if (!company) return notFound("Empresa não encontrada.");
 
-    return ok(company);
+    // Mesmo formato (tipo `Company` do frontend) usado no resto do site.
+    return ok(mapCompany(company, company.galeria.map((g) => g.url)));
   } catch (err) {
     console.error("[GET /api/painel/company]", err);
     return serverError();
@@ -56,9 +58,10 @@ export async function PATCH(request: NextRequest) {
     const company = await prisma.company.update({
       where: { id: auth.companyId },
       data,
+      include: { horarios: true, galeria: { orderBy: { ordem: "asc" } }, categoria: true },
     });
 
-    return ok(company);
+    return ok(mapCompany(company, company.galeria.map((g) => g.url)));
   } catch (err) {
     console.error("[PATCH /api/painel/company]", err);
     return serverError();

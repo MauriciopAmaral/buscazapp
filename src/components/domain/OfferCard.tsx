@@ -7,7 +7,14 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { companies } from "@/mocks/companies";
 
 export function OfferCard({ promotion }: { promotion: Promotion }) {
-  const company = companies.find((c) => c.id === promotion.companyId);
+  // Promoções que vêm da API/banco já trazem o nome/slug da empresa junto
+  // (evita ter que procurar no array de mocks, que só tem as empresas fictícias).
+  const companyFallback = promotion.companySlug
+    ? null
+    : companies.find((c) => c.id === promotion.companyId);
+  const company = promotion.companySlug
+    ? { nomeFantasia: promotion.companyNome ?? "", slug: promotion.companySlug }
+    : companyFallback;
   const desconto = Math.round(
     ((promotion.preco - promotion.precoPromocional) / promotion.preco) * 100
   );

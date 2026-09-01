@@ -20,7 +20,7 @@ const statusMeta: Record<
 };
 
 export default function CashbackPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, token, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [saldo, setSaldo] = useState(0);
   const [extrato, setExtrato] = useState<CashbackTransaction[]>([]);
@@ -31,20 +31,18 @@ export default function CashbackPage() {
       router.replace("/login");
       return;
     }
-    if (!user) return;
+    if (!user || !token) return;
     let active = true;
-    Promise.all([cashbackService.getSaldo(user.id), cashbackService.getExtrato(user.id)]).then(
-      ([s, e]) => {
-        if (!active) return;
-        setSaldo(s);
-        setExtrato(e);
-        setLoading(false);
-      }
-    );
+    cashbackService.getSaldoEExtrato(token).then(({ saldo: s, extrato: e }) => {
+      if (!active) return;
+      setSaldo(s);
+      setExtrato(e);
+      setLoading(false);
+    });
     return () => {
       active = false;
     };
-  }, [authLoading, user, router]);
+  }, [authLoading, user, token, router]);
 
   if (!user) return null;
 

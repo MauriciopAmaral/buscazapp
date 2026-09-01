@@ -1,13 +1,39 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Heart } from "lucide-react";
 import { CompanyCard } from "@/components/domain";
-import { EmptyState, LinkButton } from "@/components/ui";
+import { EmptyState, LinkButton, LoadingState } from "@/components/ui";
 import { useFavorites } from "@/context/FavoritesContext";
-import { companies } from "@/mocks/companies";
+import { Company } from "@/types";
 
 export default function FavoritosPage() {
   const { favoriteIds } = useFavorites();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/companies?pageSize=50");
+        const json = await res.json().catch(() => null);
+        if (!cancelled && json?.success) {
+          setCompanies(json.data.empresas);
+        }
+      } catch {
+        // sem conexão: mantém a lista vazia
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const favoritos = companies.filter((c) => favoriteIds.includes(c.id));
 
   return (
@@ -16,7 +42,9 @@ export default function FavoritosPage() {
       <p className="mt-1 text-sm text-ink-500">Empresas que você salvou para acessar depois.</p>
 
       <div className="mt-6">
-        {favoritos.length === 0 ? (
+        {loading ? (
+          <LoadingState />
+        ) : favoritos.length === 0 ? (
           <EmptyState
             icon={<Heart size={22} />}
             title="Você ainda não tem favoritos"
