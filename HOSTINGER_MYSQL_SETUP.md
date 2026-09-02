@@ -368,6 +368,18 @@ A tela **Admin → Bairros** era só uma consulta (escolhia uma cidade dentre as
 
 Não exige `db push` nem variável de ambiente nova (as rotas `POST` e `DELETE` de `/api/admin/locations/neighborhoods` são novas, mas usam a tabela `Neighborhood` que já existia).
 
+## Atualização: Admin → Promoções real, com busca, filtro de status e ações
+
+Essa tela também era só mockup. Agora:
+
+- Lista as promoções reais de todas as empresas, com o nome da empresa junto.
+- **Busca** por título da promoção ou nome da empresa.
+- **Filtro rápido por status** (Todas / Ativas / Agendadas / Expiradas / Desativadas), em botões acima da lista.
+- **Desativar/Ativar**: alterna o status da promoção entre "desativada" e "ativa" direto na lista — útil pra tirar do ar uma promoção problemática sem precisar excluir.
+- **Excluir**: remove a promoção definitivamente, com confirmação antes.
+
+Não exige `db push` nem variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).
