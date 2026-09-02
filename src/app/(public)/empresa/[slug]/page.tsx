@@ -11,9 +11,14 @@ import { ClaimBanner } from "./ClaimBanner";
 import { CompanyTabs } from "./CompanyTabs";
 import { CompanyMapCard } from "./CompanyMapCard";
 
-// Sem generateStaticParams: a página é renderizada sob demanda (dynamic
-// rendering), buscando direto no banco a cada acesso — assim uma empresa
-// cadastrada agora aparece sem precisar de um novo build/deploy.
+// Sem generateStaticParams + force-dynamic: a página é renderizada sob
+// demanda a cada acesso, buscando direto no banco — assim uma empresa
+// cadastrada/editada agora aparece na hora, sem precisar de um novo
+// build/deploy. (Sem o "dynamic" abaixo, o Next cacheia o HTML da
+// primeira visita a cada slug e serve essa versão presa pra todo mundo
+// depois — foi isso que fez as categorias novas não aparecerem até o
+// próximo deploy.)
+export const dynamic = "force-dynamic";
 
 const diaLabel: Record<string, string> = {
   segunda: "Segunda-feira",

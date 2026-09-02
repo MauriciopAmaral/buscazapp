@@ -7,6 +7,11 @@ import { getCompanies, getFeaturedCompanies, getActivePromotions, getActiveCoupo
 import { HomeSearchForm } from "./HomeSearchForm";
 import { NearbyCompanies } from "./NearbyCompanies";
 
+// Sempre busca direto no banco a cada acesso — sem isso o Next cacheia o
+// HTML da home no primeiro acesso após o deploy, e empresas/categorias/
+// cupons novos só apareceriam depois de um novo deploy.
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const [categories, nearbyCompanies, featuredCompanies, activePromotions, activeCoupons] = await Promise.all([
     getCategories(),

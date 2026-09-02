@@ -2,6 +2,10 @@ import { CategoryCard } from "@/components/domain";
 import { getCategories } from "@/lib/categoryData";
 
 export const metadata = { title: "Categorias — BuscaZapp" };
+// Sempre busca direto no banco a cada acesso — sem isso o Next cacheia o
+// HTML gerado no primeiro acesso e categorias novas só apareceriam depois
+// de um novo deploy.
+export const dynamic = "force-dynamic";
 
 export default async function CategoriasPage() {
   const categories = await getCategories();

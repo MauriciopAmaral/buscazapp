@@ -276,6 +276,14 @@ As telas **Admin → Estados**, **Admin → Cidades** e **Admin → Bairros** (q
 
 Não precisa de nenhuma variável de ambiente nova nem chave de API pra essa parte — a API do IBGE é pública e gratuita.
 
+## Atualização: correção — páginas públicas ficavam "presas" na versão antiga
+
+**Causa raiz do problema** de categorias novas (ou empresas novas) não aparecerem mesmo depois de já estarem no banco: as páginas públicas (Início, Todas as categorias, página de uma categoria, página de uma empresa, Cupons) são páginas renderizadas no servidor, e nenhuma delas tinha uma configuração dizendo "busque sempre dados atualizados". O Next.js, por padrão, gera o HTML dessas páginas na primeira visita depois de um deploy e **guarda essa versão em cache indefinidamente**, servindo ela pra todo mundo — mesmo que o banco mude depois (seja por uma importação, seja por um cadastro novo de empresa). Só um novo deploy "limpava" esse cache.
+
+Corrigido adicionando `export const dynamic = "force-dynamic"` nessas 5 páginas (`/`, `/categorias`, `/categoria/[slug]`, `/empresa/[slug]`, `/cupons`), que faz elas buscarem direto no banco a cada visita, sem cache. A partir do próximo deploy, qualquer mudança no banco — seja pelas importações da tela de Dados de referência, seja por uma empresa se cadastrando, seja por você editando algo no admin — aparece pro visitante na hora, sem precisar esperar um novo deploy.
+
+Não exige `db push` nem variável de ambiente nova — é só código.
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).

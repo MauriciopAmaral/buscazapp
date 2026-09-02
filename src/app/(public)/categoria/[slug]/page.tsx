@@ -6,9 +6,10 @@ import { EmptyState } from "@/components/ui";
 import { getCategoryBySlug } from "@/lib/categoryData";
 import { getCompaniesByCategorySlug } from "@/lib/companyData";
 
-// Sem generateStaticParams: a página é renderizada sob demanda (dynamic
-// rendering), buscando direto no banco — assim novas categorias/empresas
-// aparecem sem precisar de um novo build.
+// Sem generateStaticParams + force-dynamic: a página é renderizada sob
+// demanda a cada acesso, buscando direto no banco — assim novas
+// categorias/empresas aparecem na hora, sem precisar de um novo build.
+export const dynamic = "force-dynamic";
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const category = await getCategoryBySlug(slug);

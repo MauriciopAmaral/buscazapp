@@ -2,6 +2,9 @@ import { CouponCard } from "@/components/domain";
 import { getActiveCoupons } from "@/lib/companyData";
 
 export const metadata = { title: "Cupons — BuscaZapp" };
+// Sempre busca direto no banco a cada acesso — sem isso os cupons novos só
+// apareceriam depois de um novo deploy.
+export const dynamic = "force-dynamic";
 
 export default async function CuponsPage() {
   const ativos = await getActiveCoupons();
