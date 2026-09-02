@@ -313,6 +313,20 @@ Também dá pra excluir empresa direto de dentro da tela de edição (botão ver
 
 Não exige `db push` nem variável de ambiente nova — só código novo (a rota `/api/admin/companies/[id]` com GET/PATCH/DELETE, e a página de edição).
 
+## Atualização: Admin → Empresas não reivindicadas, real e com os ícones funcionando
+
+Essa tela também era só mockup (lista fixa, nenhum ícone fazia nada de verdade). Agora:
+
+- Lista as empresas reais do banco que ainda estão com `reivindicada: false` (cadastradas por você/admin mas sem um dono de conta vinculado ainda).
+- **Ícone de olho (Visualizar)**: abre a página pública da empresa, igual antes — agora com o link certo pra empresa real.
+- **Ícone de lápis (Editar)**: agora leva pra tela de edição completa que criamos em Admin → Empresas (`/admin/empresas/[id]`) — dá pra corrigir dados, mudar status, marcar como verificada etc. direto por lá também.
+- **Ícone de escudo (Marcar como verificada)**: alterna `verificado` pra essa empresa de verdade no banco (clicar de novo desfaz). O escudo fica verde quando está verificada.
+- **Ícone de alvo (Iniciar prospecção)**: cria um registro real de prospecção pra essa empresa (tabela `Prospect`, status inicial "novo") — é o primeiro passo pra ela aparecer no CRM de prospecção. Ao clicar, o ícone fica verde e desabilitado (já está no funil, não duplica).
+
+**Importante**: a tela **Admin → Prospecção** (o quadro tipo Kanban com as colunas Novo/Contatado/Interessado etc.) ainda é só mockup — ela não lê os `Prospect` que essa tela cria. Ligar o Kanban de prospecção nos dados reais fica pra próxima etapa (está na lista "O que ainda falta" abaixo).
+
+Não exige `db push` nem variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).
