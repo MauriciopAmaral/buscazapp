@@ -357,6 +357,17 @@ Não exige `db push` nem variável de ambiente nova.
 
 Não exige `db push` nem variável de ambiente nova.
 
+## Atualização: Admin → Bairros com busca, cadastro manual e ligado a estado/cidade
+
+A tela **Admin → Bairros** era só uma consulta (escolhia uma cidade dentre as que já tinham bairro, e via a lista). Agora:
+
+- **Escolha por Estado → Cidade**: primeiro seleciona o estado (UF), depois busca a cidade pelo nome — funciona pra qualquer cidade, mesmo as que ainda não têm nenhum bairro cadastrado (antes, só apareciam cidades que já tinham pelo menos um). Como tem estado com centenas de cidades (Minas Gerais tem 853, por exemplo), a busca de cidade é por texto, não uma lista gigante pra rolar.
+- **Busca de bairro**: depois de escolher a cidade, dá pra filtrar os bairros dela por nome.
+- **Cadastrar bairro** (botão no topo): abre um formulário simples — só o nome — e cadastra na hora pra a cidade selecionada. Bloqueia nomes repetidos na mesma cidade.
+- **Excluir bairro**: cada linha da lista tem um ícone de lixeira, com confirmação antes.
+
+Não exige `db push` nem variável de ambiente nova (as rotas `POST` e `DELETE` de `/api/admin/locations/neighborhoods` são novas, mas usam a tabela `Neighborhood` que já existia).
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).
