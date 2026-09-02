@@ -301,6 +301,18 @@ Vai levar alguns segundos. Como uso `INSERT IGNORE` e a tabela `City` tem uma tr
 
 Depois é só conferir em **Admin → Cidades** e **Admin → Estados** — essas telas do admin já buscam sempre direto no banco (sem cache), então aparecem atualizadas assim que você atualizar a página, sem precisar de deploy novo.
 
+## Atualização: Admin → Empresas com Editar, Ativar/Desativar e Excluir
+
+A tela **Admin → Empresas** ganhou ações de verdade na coluna "Ações", pra cada empresa da lista:
+
+- **Editar**: abre uma tela nova (`/admin/empresas/[id]`) com o cadastro completo da empresa — dados gerais, segmento (com a mesma opção de cadastrar um segmento novo), contato, endereço, e uma seção só de admin com **Status** (Ativo/Pendente/Suspenso), **Plano**, e os interruptores de Verificada / Destaque premium / Reivindicada. Salva tudo de uma vez.
+- **Ativar/Desativar**: direto na lista, sem precisar abrir a tela de edição — alterna o status entre "ativo" e "suspenso" com uma confirmação. Uma empresa suspensa continua no banco mas para de aparecer nas buscas/listagens públicas (mesmo filtro que já existia pra `status: "ativo"` nas páginas do site).
+- **Excluir**: apaga a empresa definitivamente, junto com tudo que depende dela (produtos, serviços, promoções, cupons, avaliações, fotos, analytics etc. — o banco já tinha essa trava de "apagar em cascata" pra essas tabelas). Contas de usuário vinculadas à empresa (o dono que fez login) não são apagadas, só desvinculadas — viram consumidor comum, sem empresa, e podem se cadastrar de novo depois se precisar. Pede confirmação antes, porque não dá pra desfazer.
+
+Também dá pra excluir empresa direto de dentro da tela de edição (botão vermelho no rodapé do formulário).
+
+Não exige `db push` nem variável de ambiente nova — só código novo (a rota `/api/admin/companies/[id]` com GET/PATCH/DELETE, e a página de edição).
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).

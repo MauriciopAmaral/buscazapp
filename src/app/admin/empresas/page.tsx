@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { Eye, CheckCircle2, XCircle } from "lucide-react";
+import { Eye, CheckCircle2, XCircle, Pencil, Power, Trash2 } from "lucide-react";
 import { DataTable, Badge, FilterBar, Select, SearchInput, LoadingState } from "@/components/ui";
 import { planos } from "@/mocks/subscriptions";
 import { useAuth } from "@/context/AuthContext";
@@ -20,6 +20,7 @@ export default function AdminEmpresasPage() {
   const [categoria, setCategoria] = useState("");
   const [plano, setPlano] = useState("");
   const [reivindicada, setReivindicada] = useState("");
+  const [processando, setProcessando] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -50,6 +51,49 @@ export default function AdminEmpresasPage() {
     }
     return Array.from(vistos.values()).sort();
   }, [companies]);
+
+  const alternarStatus = async (empresa: Company) => {
+    if (!token) return;
+    const novoStatus = empresa.status === "ativo" ? "suspenso" : "ativo";
+    const acaoLabel = novoStatus === "ativo" ? "ativar" : "desativar";
+    if (!confirm(`Quer mesmo ${acaoLabel} "${empresa.nomeFantasia}"?`)) return;
+    setProcessando(empresa.id);
+    try {
+      const res = await fetch(`/api/admin/companies/${empresa.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: novoStatus }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.success) {
+        setCompanies((prev) => prev.map((c) => (c.id === empresa.id ? { ...c, status: novoStatus } : c)));
+      } else {
+        alert(json?.error?.message ?? "Não foi possível alterar o status.");
+      }
+    } finally {
+      setProcessando(null);
+    }
+  };
+
+  const excluirEmpresa = async (empresa: Company) => {
+    if (!token) return;
+    if (!confirm(`Excluir "${empresa.nomeFantasia}" definitivamente? Isso apaga também produtos, cupons, avaliações e todo o resto ligado a ela. Não dá pra desfazer.`)) return;
+    setProcessando(empresa.id);
+    try {
+      const res = await fetch(`/api/admin/companies/${empresa.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.success) {
+        setCompanies((prev) => prev.filter((c) => c.id !== empresa.id));
+      } else {
+        alert(json?.error?.message ?? "Não foi possível excluir a empresa.");
+      }
+    } finally {
+      setProcessando(null);
+    }
+  };
 
   const results = useMemo(() => {
     return companies.filter((c) => {
@@ -139,9 +183,30 @@ export default function AdminEmpresasPage() {
               key: "acoes",
               header: "Ações",
               render: (c) => (
-                <Link href={`/empresa/${c.slug}`} target="_blank" className="flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline">
-                  <Eye size={13} /> Ver
-                </Link>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link href={`/empresa/${c.slug}`} target="_blank" className="flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline">
+                    <Eye size={13} /> Ver
+                  </Link>
+                  <Link href={`/admin/empresas/${c.id}`} className="flex items-center gap-1 text-xs font-medium text-ink-700 hover:underline">
+                    <Pencil size={13} /> Editar
+                  </Link>
+                  <button
+                    type="button"
+                    disabled={processando === c.id}
+                    onClick={() => alternarStatus(c)}
+                    className="flex items-center gap-1 text-xs font-medium text-amber-700 hover:underline disabled:opacity-50"
+                  >
+                    <Power size={13} /> {c.status === "ativo" ? "Desativar" : "Ativar"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={processando === c.id}
+                    onClick={() => excluirEmpresa(c)}
+                    className="flex items-center gap-1 text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    <Trash2 size={13} /> Excluir
+                  </button>
+                </div>
               ),
             },
           ]}
