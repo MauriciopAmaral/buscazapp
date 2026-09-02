@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Building2, ShieldQuestion, FileCheck2, Users, Tags, Map,
   MapPinned, Home as HomeIcon, Tag, Ticket, CreditCard, Wallet, Megaphone,
-  Target, FileBarChart, Settings,
+  Target, FileBarChart, Settings, Database,
 } from "lucide-react";
 import { Sidebar, SidebarItem } from "@/components/layout/Sidebar";
 import { RequireRole } from "@/components/auth/RequireRole";
@@ -16,6 +16,7 @@ const items: SidebarItem[] = [
   { href: "/admin/estados", label: "Estados", icon: <Map size={18} /> },
   { href: "/admin/cidades", label: "Cidades", icon: <MapPinned size={18} /> },
   { href: "/admin/bairros", label: "Bairros", icon: <HomeIcon size={18} /> },
+  { href: "/admin/dados-de-referencia", label: "Dados de referência", icon: <Database size={18} /> },
   { href: "/admin/promocoes", label: "Promoções", icon: <Tag size={18} /> },
   { href: "/admin/cupons", label: "Cupons", icon: <Ticket size={18} /> },
   { href: "/admin/planos", label: "Planos", icon: <CreditCard size={18} /> },

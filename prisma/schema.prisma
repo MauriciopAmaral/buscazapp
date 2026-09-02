@@ -165,6 +165,7 @@ model Neighborhood {
   city      City     @relation(fields: [cidadeId], references: [id])
   createdAt DateTime @default(now())
 
+  @@unique([nome, cidadeId])
   @@index([cidadeId])
 }
 

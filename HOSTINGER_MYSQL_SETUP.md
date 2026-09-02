@@ -260,10 +260,25 @@ Enquanto essas variáveis não estiverem configuradas, o botão de upload mostra
 
 **Erro comum: "Hostname/IP does not match certificate's altnames"** — acontece quando `FTP_HOST` é o IP do servidor (em vez de um nome de domínio) e a conexão usa FTPS (padrão). O certificado TLS que a Hostinger apresenta foi emitido pro domínio do servidor, não pro IP, então a verificação de certificado falha. A correção já está no código: por padrão a verificação estrita fica desligada (variável `FTP_TLS_REJECT_UNAUTHORIZED="false"`, que é o padrão mesmo se você não definir nada). Se ainda assim quiser validação total do certificado, use o hostname do servidor FTP (não o IP) em `FTP_HOST`.
 
+## Atualização: importação em massa de categorias, estados/cidades (Brasil todo) e bairros
+
+Nova página **Admin → Dados de referência** (`/admin/dados-de-referencia`), com três botões — cada um pode ser clicado quantas vezes quiser, sem duplicar o que já existe no banco:
+
+- **Importar categorias**: cria de uma vez ~55 segmentos de negócio comuns (Academias, Barbearias, Guinchos, Salões de Beleza, etc. — a mesma lista que você mandou print). Categorias que já existirem (ex: as que você já cadastrou manualmente, ou "Gráfica" que já foi criada pelo fluxo de "adicionar segmento") não são duplicadas.
+- **Importar cidades (todo o Brasil)**: busca os ~5.570 municípios oficiais direto na **API pública do IBGE** (não precisa de chave/cadastro) e grava todos no banco, um estado por vez — o botão mostra o progresso (estado a estado) e leva cerca de 1 minuto no total.
+- **Importar bairros**: grava os bairros oficiais de **Belém** (73 bairros, conforme as Leis Municipais 7.806 e 8.655) e **Castanhal** (28 bairros, Lei 029/2019), além de uma lista de **Ananindeua** (21 bairros) — essa última eu não achei uma lei municipal consolidada como fonte, então pode ter alguma divergência pontual; dá pra corrigir depois direto no banco se precisar. **Marabá e Santarém ficaram de fora** porque não encontrei uma lista oficial confiável pra essas duas — se você tiver a lista de bairros delas (ou de qualquer outra cidade), me manda que eu incluo.
+
+**Ordem recomendada pra rodar**: Categorias → Cidades → Bairros (não é obrigatório, mas evita telas vazias enquanto os outros dados ainda não chegaram).
+
+As telas **Admin → Estados**, **Admin → Cidades** e **Admin → Bairros** (que antes eram só mockup) agora mostram os dados reais do banco, com busca e paginação.
+
+**Isso exige rodar `npx prisma db push` de novo antes do próximo deploy** — adicionei uma trava de duplicidade nova no schema (`@@unique` em `Neighborhood`, pra nome de bairro não duplicar dentro da mesma cidade quando a importação for rodada mais de uma vez). Se você já rodou o `db push` depois da atualização anterior (a do `PasswordResetToken`), rode de novo — é rápido e não apaga dados existentes.
+
+Não precisa de nenhuma variável de ambiente nova nem chave de API pra essa parte — a API do IBGE é pública e gratuita.
+
 ## O que ainda falta (próxima etapa)
 
-1. **Terminar o resto do admin** — cada tela restante (cidades, bairros, planos, cupons/promoções em massa, financeiro, relatórios, prospecção, anúncios, usuários) precisa de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies`.
-2. **Ligar o upload de fotos nos formulários de produtos e serviços** — hoje eles ainda usam uma URL de imagem de placeholder; o componente de upload (`ImageUploadField`) já existe e pode ser reaproveitado lá.
-3. **Validação de verdade na reivindicação de perfil** (enviar código por e-mail/SMS real) — precisa de um serviço de envio (ex: Resend pra e-mail, alguma API de SMS) configurado com chave de API.
+1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).
+2. **Validação de verdade na reivindicação de perfil e no "esqueci minha senha"** (enviar código/link por e-mail/SMS real, em vez de mostrar na tela) — precisa de um serviço de envio (ex: Resend pra e-mail, alguma API de SMS) configurado com chave de API.
 
 Me diz por qual desses quer que eu continue — ou me passa as credenciais de FTP do item acima que eu já deixo o upload de fotos funcionando em produção.
