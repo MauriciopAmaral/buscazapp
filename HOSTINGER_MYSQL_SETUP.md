@@ -327,6 +327,17 @@ Essa tela também era só mockup (lista fixa, nenhum ícone fazia nada de verdad
 
 Não exige `db push` nem variável de ambiente nova.
 
+## Atualização: Admin → Usuários com Editar e Excluir (e trocar senha manualmente)
+
+A tela **Admin → Usuários** ganhou uma coluna de ações:
+
+- **Editar** (lápis): abre um formulário pra mudar nome e e-mail da conta, e — o pedido principal — **definir uma nova senha pra ela na hora**, sem precisar do fluxo de "esqueci minha senha". Útil quando alguém perde acesso e ainda não configuramos envio de e-mail de verdade (a mesma limitação de sempre — ver a seção de "esqueci minha senha" mais acima). Senha nova precisa ter pelo menos 6 caracteres; deixando o campo em branco, a senha atual não muda.
+- **Excluir** (lixeira): apaga a conta definitivamente, com confirmação antes. Reivindicações antigas feitas por essa conta (`Claim`) ficam sem usuário vinculado em vez de serem apagadas junto, pra manter o histórico. Se a conta tinha uma empresa vinculada, a empresa **não é apagada** — só fica sem esse usuário (o admin pode vincular outra conta a ela depois em Empresas, ou pela própria tela de Usuários usando "vincular empresa"). Por segurança, o próprio admin logado não consegue excluir a própria conta por essa tela (o botão fica desabilitado nela).
+
+A troca de papel (Consumidor/Empresa/Admin) e o "desvincular empresa" que já existiam continuam do mesmo jeito.
+
+Não exige `db push` nem variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).
