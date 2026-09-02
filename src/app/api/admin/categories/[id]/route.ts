@@ -59,3 +59,34 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return serverError();
   }
 }
+
+// DELETE /api/admin/categories/[id] — remove uma categoria. Só permite
+// quando nenhuma empresa está usando ela (Company.categoriaId é
+// obrigatório, sem cascade) — nesse caso, é melhor desativá-la (toggle)
+// do que excluir. Categoria em uso: erro 409, com o total de empresas na
+// mensagem, pra quem tentar excluir saber por quê.
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const auth = getAuthUserWithRole(request, ["admin"]);
+    if (!auth) return unauthorized("Faça login como administrador.");
+
+    const { id } = await params;
+    const existing = await prisma.category.findUnique({
+      where: { id },
+      include: { _count: { select: { companies: true } } },
+    });
+    if (!existing) return notFound("Categoria não encontrada.");
+
+    if (existing._count.companies > 0) {
+      return conflict(
+        `Essa categoria está em uso por ${existing._count.companies} empresa(s) — não dá pra excluir. Se quiser tirá-la de circulação, desative-a em vez de excluir.`
+      );
+    }
+
+    await prisma.category.delete({ where: { id } });
+    return ok({ excluida: true });
+  } catch (err) {
+    console.error("[DELETE /api/admin/categories/[id]]", err);
+    return serverError();
+  }
+}

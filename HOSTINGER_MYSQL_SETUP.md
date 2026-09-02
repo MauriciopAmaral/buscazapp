@@ -338,6 +338,15 @@ A troca de papel (Consumidor/Empresa/Admin) e o "desvincular empresa" que já ex
 
 Não exige `db push` nem variável de ambiente nova.
 
+## Atualização: Admin → Categorias com Excluir
+
+A tela **Admin → Categorias** (Editar e Ativar/Desativar já eram reais desde a atualização anterior) ganhou o ícone de **Excluir** (lixeira):
+
+- Só é possível excluir uma categoria que **nenhuma empresa está usando** — se houver empresas naquele segmento, o botão mostra o motivo ao passar o mouse e a exclusão é bloqueada com uma mensagem clara (dizendo quantas empresas estão usando). Isso porque toda empresa precisa ter uma categoria, então excluir uma em uso quebraria o cadastro dela.
+- Pra tirar uma categoria de circulação sem empresas nela, é só excluir. Se ela ainda tem empresas, a alternativa é **desativar** (o botão de toggle ao lado) — ela some dos filtros do site mas continua vinculada às empresas que já a usam.
+
+Não exige `db push` nem variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).

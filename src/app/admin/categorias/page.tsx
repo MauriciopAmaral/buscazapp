@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Pencil, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
 import { DataTable, Badge, Button, Modal, Input, Textarea, LoadingState } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { Category } from "@/types";
@@ -13,6 +13,7 @@ export default function AdminCategoriasPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [excluindo, setExcluindo] = useState<string | null>(null);
 
   const carregar = () => {
     fetch("/api/categories")
@@ -38,6 +39,26 @@ export default function AdminCategoriasPage() {
     const json = await res.json().catch(() => null);
     if (res.ok && json?.success) {
       setCategories((prev) => prev.map((c) => (c.id === cat.id ? json.data : c)));
+    }
+  };
+
+  const excluir = async (cat: Category) => {
+    if (!token) return;
+    if (!confirm(`Excluir a categoria "${cat.nome}"? Só é possível se nenhuma empresa estiver usando ela.`)) return;
+    setExcluindo(cat.id);
+    try {
+      const res = await fetch(`/api/admin/categories/${cat.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.success) {
+        setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+      } else {
+        alert(json?.error?.message ?? "Não foi possível excluir essa categoria.");
+      }
+    } finally {
+      setExcluindo(null);
     }
   };
 
@@ -119,8 +140,16 @@ export default function AdminCategoriasPage() {
                     >
                       <Pencil size={15} />
                     </button>
-                    <button onClick={() => toggle(c)} className="text-ink-500 hover:text-brand-700">
+                    <button onClick={() => toggle(c)} className="text-ink-500 hover:text-brand-700" title={c.ativo ? "Desativar" : "Ativar"}>
                       {c.ativo ? <ToggleRight size={18} className="text-brand-600" /> : <ToggleLeft size={18} />}
+                    </button>
+                    <button
+                      onClick={() => excluir(c)}
+                      disabled={excluindo === c.id}
+                      className="text-ink-500 hover:text-red-600 disabled:opacity-40"
+                      title={c.totalEmpresas > 0 ? `Em uso por ${c.totalEmpresas} empresa(s)` : "Excluir"}
+                    >
+                      <Trash2 size={15} />
                     </button>
                   </div>
                 ),
