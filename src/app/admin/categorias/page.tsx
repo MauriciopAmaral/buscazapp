@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
-import { DataTable, Badge, Button, Modal, Input, Textarea, LoadingState } from "@/components/ui";
+import { DataTable, Badge, Button, Modal, Input, Textarea, LoadingState, SearchInput } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { Category } from "@/types";
+import { cn } from "@/lib/utils";
+
+type FiltroStatus = "todas" | "ativas" | "inativas";
 
 export default function AdminCategoriasPage() {
   const { token } = useAuth();
@@ -14,9 +17,12 @@ export default function AdminCategoriasPage() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [excluindo, setExcluindo] = useState<string | null>(null);
+  const [termo, setTermo] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todas");
 
   const carregar = () => {
-    fetch("/api/categories")
+    if (!token) return;
+    fetch("/api/admin/categories", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((json) => {
         if (json?.success) setCategories(json.data);
@@ -27,7 +33,17 @@ export default function AdminCategoriasPage() {
 
   useEffect(() => {
     carregar();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só precisa recarregar quando o token muda
+  }, [token]);
+
+  const results = useMemo(() => {
+    return categories.filter((c) => {
+      if (termo && !c.nome.toLowerCase().includes(termo.toLowerCase())) return false;
+      if (filtroStatus === "ativas" && !c.ativo) return false;
+      if (filtroStatus === "inativas" && c.ativo) return false;
+      return true;
+    });
+  }, [categories, termo, filtroStatus]);
 
   const toggle = async (cat: Category) => {
     if (!token) return;
@@ -94,11 +110,34 @@ export default function AdminCategoriasPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-ink-900 sm:text-2xl">Categorias</h1>
-          <p className="text-sm text-ink-500">Gerencie as categorias exibidas na plataforma.</p>
+          <p className="text-sm text-ink-500">{results.length} de {categories.length} categorias.</p>
         </div>
         <Button icon={<Plus size={16} />} onClick={startNew}>
           Nova categoria
         </Button>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <SearchInput value={termo} onChange={(e) => setTermo(e.target.value)} placeholder="Buscar categoria..." containerClassName="max-w-xs" />
+        <div className="flex items-center gap-1 rounded-xl border border-ink-200 bg-white p-1">
+          {([
+            ["todas", "Todas"],
+            ["ativas", "Ativas"],
+            ["inativas", "Inativas"],
+          ] as [FiltroStatus, string][]).map(([valor, label]) => (
+            <button
+              key={valor}
+              type="button"
+              onClick={() => setFiltroStatus(valor)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                filtroStatus === valor ? "bg-brand-600 text-white" : "text-ink-600 hover:bg-ink-100"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="mt-4">
@@ -106,7 +145,7 @@ export default function AdminCategoriasPage() {
           <LoadingState />
         ) : (
           <DataTable
-            data={categories}
+            data={results}
             rowKey={(c) => c.id}
             columns={[
               {

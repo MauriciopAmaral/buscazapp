@@ -347,6 +347,16 @@ A tela **Admin → Categorias** (Editar e Ativar/Desativar já eram reais desde 
 
 Não exige `db push` nem variável de ambiente nova.
 
+## Atualização: correção — editar categoria não salvava ao apagar o ícone, + busca e filtro de status
+
+**Bug corrigido**: no formulário de editar categoria, se você apagasse o campo do ícone (emoji) e tentasse salvar, a alteração era ignorada silenciosamente — o código só salvava o ícone se sobrasse algum texto depois de "aparar espaços", então um campo vazio nunca chegava a ser gravado. Corrigido: agora qualquer valor do campo Ícone é salvo, incluindo vazio.
+
+**Bug relacionado, mais sério, que também foi corrigido**: a tela de Admin → Categorias carregava a lista pela rota pública `/api/categories`, que só devolve categorias **ativas** — ou seja, depois de desativar uma categoria, ela sumia da própria tela do admin e não tinha como reativá-la por ali (só direto no banco). Criei uma rota só pro admin (`GET /api/admin/categories`) que traz todas, ativas e inativas, e troquei a tela pra usar ela.
+
+**Novidades pedidas**: acima da lista agora tem uma **busca por nome** e um filtro de **Todas / Ativas / Inativas**, igual o padrão usado nas outras telas do admin (Empresas, Cidades etc.).
+
+Não exige `db push` nem variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).

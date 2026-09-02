@@ -31,7 +31,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         data.slug = novoSlug;
       }
     }
-    if (typeof body.icone === "string" && body.icone.trim()) data.icone = body.icone.trim();
+    // Antes só salvava o ícone se ele não ficasse vazio depois do trim —
+    // isso impedia limpar/trocar o emoji (digitar, apagar tudo, digitar de
+    // novo podia "prender" no valor antigo). Agora qualquer string, mesmo
+    // vazia, é aceita — o card de categoria já cai num ícone padrão quando
+    // não tem nenhum configurado.
+    if (typeof body.icone === "string") data.icone = body.icone.trim();
     if (typeof body.descricao === "string") data.descricao = body.descricao.trim();
     if (typeof body.ativo === "boolean") data.ativo = body.ativo;
 
