@@ -6,7 +6,7 @@ import { Star, MapPinned, LocateFixed, LoaderCircle } from "lucide-react";
 import { CompanyCard } from "@/components/domain";
 import { FilterBar, Select, EmptyState, Pagination, SearchInput, Button, LoadingState } from "@/components/ui";
 import { neighborhoods, cities } from "@/mocks/locations";
-import { isCompanyOpenNow } from "@/lib/utils";
+import { isCompanyOpenNow, normalizeForCompare } from "@/lib/utils";
 import { useGeo } from "@/context/GeoContext";
 import { distanceKm } from "@/lib/geo";
 import { Category, Company, Coupon, Promotion } from "@/types";
@@ -65,10 +65,17 @@ export function BuscarClient() {
     };
   }, []);
 
-  const cidadesPara = useMemo(
-    () => Array.from(new Set(companies.map((c) => c.endereco.cidade))).sort(),
-    [companies]
-  );
+  // Junta cidades "iguais" digitadas com acento/maiúscula diferente (ex:
+  // "Belém" e "belem") num único item no dropdown, mantendo a primeira
+  // grafia encontrada como rótulo.
+  const cidadesPara = useMemo(() => {
+    const vistos = new Map<string, string>();
+    for (const c of companies) {
+      const chave = normalizeForCompare(c.endereco.cidade);
+      if (chave && !vistos.has(chave)) vistos.set(chave, c.endereco.cidade);
+    }
+    return Array.from(vistos.values()).sort();
+  }, [companies]);
 
   // Assim que a localização é liberada, já ordena automaticamente por mais próximas.
   useEffect(() => {
@@ -92,7 +99,10 @@ export function BuscarClient() {
           c.descricao.toLowerCase().includes(t)
       );
     }
-    if (cidade) list = list.filter((c) => c.endereco.cidade === cidade);
+    if (cidade) {
+      const alvo = normalizeForCompare(cidade);
+      list = list.filter((c) => normalizeForCompare(c.endereco.cidade) === alvo);
+    }
     if (bairro) list = list.filter((c) => c.endereco.bairro === bairro);
     if (categoria) {
       const cat = categories.find((c) => c.slug === categoria);

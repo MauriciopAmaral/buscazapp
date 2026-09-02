@@ -217,6 +217,21 @@ O que **continua** com dados fictícios, porque a API correspondente ainda não 
 - Todo o resto do admin: usuários, cidades/bairros/estados, categorias, cupons, promoções, planos, financeiro, relatórios, prospecção, anúncios, empresas não reivindicadas.
 - Upload de imagem de verdade (logo/capa/galeria/fotos de produto continuam sendo só texto de URL).
 
+## Atualização: login sem atalhos de dev + recuperação de senha + admin (Usuários e Categorias) real
+
+- **Tela de login**: removi o bloco "Atalhos de desenvolvimento" (os botões de "Entrar como consumidor/empresa/administrador") — a partir de agora só dá pra entrar com e-mail e senha de verdade, como num site em produção.
+- **Esqueci minha senha**: novo fluxo completo em `/recuperar-senha` → `/redefinir-senha/[token]`. **Importante**: como ainda não existe um serviço de e-mail configurado no projeto (precisaria de uma conta em algo como Resend ou SendGrid + uma chave de API — mesma situação do código de verificação da tela de "Reivindicar perfil"), o link de redefinição não é enviado por e-mail ainda: ele aparece direto na tela depois de informar o e-mail. Se quiser que isso vire um e-mail de verdade, me passa as credenciais de um serviço de e-mail (Resend é o mais simples de configurar) que eu termino de ligar.
+  - **Isso exige rodar uma migração no banco** (`npx prisma db push`) antes do próximo deploy — adicionei uma tabela nova (`PasswordResetToken`) no schema. Rode isso a partir da sua máquina, com o `.env` apontando pro banco de produção da Hostinger, igual você já fez pras tabelas anteriores.
+- **Admin → Usuários**: agora lista as contas reais do banco, com busca por nome/e-mail, e permite trocar o papel da conta (consumidor/empresa/admin) ou desvincular uma empresa da conta — direto na tabela, sem precisar editar o banco na mão.
+- **Admin → Categorias**: CRUD completo de verdade (criar, editar nome/ícone/descrição, ativar/desativar) via `/api/admin/categories`.
+
+## Atualização: segmento (categoria) editável + busca corrigida pra empresas novas
+
+Duas correções relacionadas ao cadastro de empresa nova:
+
+- **Segmento que não está na lista**: tanto no cadastro (`/painel/criar-empresa`) quanto depois, editando em **Minha empresa**, agora tem a opção "Não achei o meu — cadastrar um novo" no campo Segmento. Ao escolher essa opção e digitar um nome (ex: "Gráfica"), uma `Category` nova é criada no banco na hora e já fica disponível pra próximas empresas escolherem também.
+- **Empresa nova não aparecia em `/buscar`**: o filtro de cidade comparava o texto digitado no cadastro com o texto da busca de forma exata (`===`), incluindo acento e maiúscula/minúscula — então "Belém" (com acento, vindo do cadastro) podia não bater com "belem" ou variações digitadas na busca. Isso foi corrigido pra comparar ignorando acento, maiúscula/minúscula e espaços extras, tanto em `/buscar` quanto em `/admin/empresas`.
+
 ## Atualização: upload de fotos usando a própria hospedagem Hostinger
 
 Em vez de contratar um serviço externo (Cloudflare R2, S3, Uploadthing etc.), o upload de imagens agora usa **a mesma hospedagem Hostinger que já hospeda o banco**, via FTP. Quando a empresa envia uma foto (logo, capa, galeria — e no futuro produtos/serviços), o servidor da Vercel conecta na sua hospedagem por FTP, salva o arquivo numa pasta organizada por empresa e grava só o **caminho/URL** no banco. Quando alguém visita o site, a imagem é servida direto do seu domínio Hostinger (`https://seudominio.com.br/uploads/...`), sem precisar de nenhum serviço pago.

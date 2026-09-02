@@ -171,6 +171,8 @@ export interface User {
   avatarUrl?: string;
   role: UserRole;
   companyId?: string;
+  companyNome?: string;
+  companySlug?: string;
   criadoEm: string;
   /** Saldo acumulado de cashback (R$), disponível para uso em novas compras. */
   saldoCashback?: number;

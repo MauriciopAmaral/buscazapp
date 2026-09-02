@@ -4,13 +4,13 @@ import { getAuthUserWithRole } from "@/lib/apiAuth";
 import { signAuthToken } from "@/lib/auth";
 import { badRequest, conflict, created, forbidden, notFound, serverError, unauthorized } from "@/lib/apiResponse";
 import { companyListInclude, mapCompany } from "@/lib/companyData";
+import { resolveCategoriaId } from "@/lib/resolveCategoria";
 import { slugify } from "@/lib/utils";
 
 const REQUIRED_FIELDS = [
   "nomeFantasia",
   "razaoSocial",
   "cnpj",
-  "categoriaId",
   "descricao",
   "telefone",
   "whatsapp",
@@ -24,8 +24,8 @@ const REQUIRED_FIELDS = [
 
 const OPTIONAL_STRING_FIELDS = ["complemento", "email", "instagram", "site"] as const;
 
-// Garante um slug único, tentando "nome-fantasia", depois "nome-fantasia-2", etc.
-async function uniqueSlug(base: string): Promise<string> {
+// Garante um slug único pra Company, tentando "nome-fantasia", depois "nome-fantasia-2", etc.
+async function uniqueCompanySlug(base: string): Promise<string> {
   const raw = slugify(base) || "empresa";
   let candidate = raw;
   let i = 2;
@@ -69,13 +69,20 @@ export async function POST(request: NextRequest) {
       return badRequest("Informe um CNPJ válido (14 dígitos).");
     }
 
-    const categoria = await prisma.category.findUnique({ where: { id: values.categoriaId } });
-    if (!categoria) return notFound("Categoria não encontrada.");
+    const categoriaId = typeof body.categoriaId === "string" ? body.categoriaId.trim() : "";
+    const novaCategoriaNome = typeof body.novaCategoriaNome === "string" ? body.novaCategoriaNome.trim() : "";
+    const categoriaResolvida = await resolveCategoriaId(categoriaId, novaCategoriaNome);
+    if ("error" in categoriaResolvida) {
+      return categoriaResolvida.error === "Categoria não encontrada."
+        ? notFound(categoriaResolvida.error)
+        : badRequest(categoriaResolvida.error);
+    }
+    const categoriaIdFinal = categoriaResolvida.id;
 
     const cnpjExistente = await prisma.company.findUnique({ where: { cnpj: cnpjDigits } });
     if (cnpjExistente) return conflict("Já existe uma empresa cadastrada com esse CNPJ.");
 
-    const slug = await uniqueSlug(values.nomeFantasia);
+    const slug = await uniqueCompanySlug(values.nomeFantasia);
 
     const company = await prisma.company.create({
       data: {
@@ -83,7 +90,7 @@ export async function POST(request: NextRequest) {
         nomeFantasia: values.nomeFantasia,
         razaoSocial: values.razaoSocial,
         cnpj: cnpjDigits,
-        categoriaId: values.categoriaId,
+        categoriaId: categoriaIdFinal,
         descricao: values.descricao,
         telefone: values.telefone,
         whatsapp: values.whatsapp,

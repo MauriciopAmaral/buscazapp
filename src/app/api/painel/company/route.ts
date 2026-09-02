@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUserWithRole } from "@/lib/apiAuth";
 import { badRequest, forbidden, notFound, ok, serverError, unauthorized } from "@/lib/apiResponse";
 import { mapCompany } from "@/lib/companyData";
+import { resolveCategoriaId } from "@/lib/resolveCategoria";
 
 // GET /api/painel/company — dados completos da empresa do usuário logado.
 export async function GET(request: NextRequest) {
@@ -53,6 +54,17 @@ export async function PATCH(request: NextRequest) {
     for (const field of allowedFields) {
       if (typeof body[field] === "string") data[field] = body[field];
     }
+
+    // categoriaId (trocar de segmento) ou novaCategoriaNome (cadastrar um
+    // segmento que ainda não existe na lista) — mesma lógica do cadastro.
+    const categoriaId = typeof body.categoriaId === "string" ? body.categoriaId.trim() : "";
+    const novaCategoriaNome = typeof body.novaCategoriaNome === "string" ? body.novaCategoriaNome.trim() : "";
+    if (categoriaId || novaCategoriaNome) {
+      const categoriaResolvida = await resolveCategoriaId(categoriaId, novaCategoriaNome);
+      if ("error" in categoriaResolvida) return badRequest(categoriaResolvida.error);
+      data.categoriaId = categoriaResolvida.id;
+    }
+
     if (Object.keys(data).length === 0) {
       return badRequest("Nenhum campo válido pra atualizar.");
     }

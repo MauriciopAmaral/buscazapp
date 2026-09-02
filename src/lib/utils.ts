@@ -41,6 +41,20 @@ export function isCompanyOpenNow(horarios: { dia: string; aberto: boolean; inici
   return minutosAgora >= hInicio * 60 + mInicio && minutosAgora <= hFim * 60 + mFim;
 }
 
+// Normaliza nome de cidade (ou qualquer texto) pra comparação — minúsculas,
+// sem acento, sem espaços extras. Usado em vez de "===" direto porque o
+// nome da cidade vem digitado livremente no cadastro da empresa (não tem
+// uma lista fixa de cidades pra escolher), então "Belém", "belem" e "Belém "
+// precisam ser tratados como a mesma cidade nos filtros de busca.
+export function normalizeForCompare(text: string) {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
 export function slugify(text: string) {
   return text
     .toLowerCase()

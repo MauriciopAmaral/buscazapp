@@ -125,6 +125,7 @@ model User {
   company   Company?  @relation(fields: [companyId], references: [id])
   favorites Favorite[]
   claims    Claim[]
+  passwordResetTokens PasswordResetToken[]
   cashbackTransactions CashbackTransaction[]
   clubeAssinante Boolean @default(false)
   createdAt DateTime  @default(now())
@@ -427,6 +428,21 @@ model Claim {
   updatedAt DateTime    @updatedAt
 
   @@index([companyId])
+}
+
+// Token de recuperação de senha (fluxo "Esqueci minha senha"). Guardamos só
+// o HASH do token (nunca o valor em texto puro) — igual senha, pra um dump
+// do banco não dar acesso às contas. Expira em 1h (ver src/app/api/auth/forgot-password/route.ts).
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Prospect {

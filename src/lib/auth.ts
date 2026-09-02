@@ -10,6 +10,7 @@
 
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { randomBytes, createHash } from "crypto";
 import type { UserRole } from "@/types";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? process.env.AUTH_SECRET;
@@ -48,4 +49,18 @@ export function verifyAuthToken(token: string): AuthTokenPayload | null {
   } catch {
     return null;
   }
+}
+
+// ------------------------------------------------------------
+// Recuperação de senha ("esqueci minha senha")
+// ------------------------------------------------------------
+// Gera um token aleatório (o que vai na URL do link, ex: /redefinir-senha/<token>)
+// e o respectivo hash (o que fica salvo no banco — nunca o token puro, igual senha).
+export function generatePasswordResetToken(): { token: string; tokenHash: string } {
+  const token = randomBytes(32).toString("hex");
+  return { token, tokenHash: hashResetToken(token) };
+}
+
+export function hashResetToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }

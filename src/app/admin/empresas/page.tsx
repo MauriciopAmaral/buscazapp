@@ -7,6 +7,7 @@ import { DataTable, Badge, FilterBar, Select, SearchInput, LoadingState } from "
 import { planos } from "@/mocks/subscriptions";
 import { useAuth } from "@/context/AuthContext";
 import { Category, Company } from "@/types";
+import { normalizeForCompare } from "@/lib/utils";
 import Link from "next/link";
 
 export default function AdminEmpresasPage() {
@@ -41,15 +42,19 @@ export default function AdminEmpresasPage() {
     };
   }, [token]);
 
-  const cidadesPara = useMemo(
-    () => Array.from(new Set(companies.map((c) => c.endereco.cidade))).sort(),
-    [companies]
-  );
+  const cidadesPara = useMemo(() => {
+    const vistos = new Map<string, string>();
+    for (const c of companies) {
+      const chave = normalizeForCompare(c.endereco.cidade);
+      if (chave && !vistos.has(chave)) vistos.set(chave, c.endereco.cidade);
+    }
+    return Array.from(vistos.values()).sort();
+  }, [companies]);
 
   const results = useMemo(() => {
     return companies.filter((c) => {
       if (termo && !c.nomeFantasia.toLowerCase().includes(termo.toLowerCase())) return false;
-      if (cidade && c.endereco.cidade !== cidade) return false;
+      if (cidade && normalizeForCompare(c.endereco.cidade) !== normalizeForCompare(cidade)) return false;
       if (categoria && c.categoriaId !== categoria) return false;
       if (plano && c.planoId !== plano) return false;
       if (reivindicada === "sim" && !c.reivindicada) return false;

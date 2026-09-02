@@ -13,11 +13,14 @@ const ESTADOS = [
   "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
 ];
 
+const NOVA_CATEGORIA = "__nova__";
+
 interface FormState {
   nomeFantasia: string;
   razaoSocial: string;
   cnpj: string;
   categoriaId: string;
+  novaCategoriaNome: string;
   descricao: string;
   telefone: string;
   whatsapp: string;
@@ -38,6 +41,7 @@ const INITIAL_STATE: FormState = {
   razaoSocial: "",
   cnpj: "",
   categoriaId: "",
+  novaCategoriaNome: "",
   descricao: "",
   telefone: "",
   whatsapp: "",
@@ -95,11 +99,22 @@ export default function CriarEmpresaPage() {
     if (!token) return;
     setErro(null);
     setEnviando(true);
+    if (form.categoriaId === NOVA_CATEGORIA && !form.novaCategoriaNome.trim()) {
+      setErro('Digite o nome do novo segmento, ou escolha um da lista.');
+      setEnviando(false);
+      return;
+    }
+
     try {
+      const payload = {
+        ...form,
+        categoriaId: form.categoriaId === NOVA_CATEGORIA ? "" : form.categoriaId,
+        novaCategoriaNome: form.categoriaId === NOVA_CATEGORIA ? form.novaCategoriaNome.trim() : undefined,
+      };
       const res = await fetch("/api/painel/company/create", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.success) {
@@ -150,20 +165,32 @@ export default function CriarEmpresaPage() {
               placeholder="00.000.000/0000-00"
               required
             />
-            <Select
-              label="Categoria"
-              value={form.categoriaId}
-              onChange={setField("categoriaId")}
-              required
-              disabled={loadingCategorias}
-            >
-              <option value="">{loadingCategorias ? "Carregando..." : "Selecione"}</option>
-              {categorias.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
-                </option>
-              ))}
-            </Select>
+            <div>
+              <Select
+                label="Segmento"
+                value={form.categoriaId}
+                onChange={setField("categoriaId")}
+                required
+                disabled={loadingCategorias}
+              >
+                <option value="">{loadingCategorias ? "Carregando..." : "Selecione"}</option>
+                {categorias.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
+                  </option>
+                ))}
+                <option value={NOVA_CATEGORIA}>Não achei o meu — cadastrar um novo</option>
+              </Select>
+              {form.categoriaId === NOVA_CATEGORIA && (
+                <Input
+                  className="mt-2"
+                  placeholder="Nome do segmento (ex: Gráfica)"
+                  value={form.novaCategoriaNome}
+                  onChange={setField("novaCategoriaNome")}
+                  required
+                />
+              )}
+            </div>
           </div>
           <Textarea
             label="Descrição"

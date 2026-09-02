@@ -3,35 +3,18 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
-import { Mail, Lock, User2, Building2, ShieldCheck } from "lucide-react";
+import { Mail, Lock } from "lucide-react";
 import { Button, Input, LinkButton } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
-import type { UserRole } from "@/types";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, loginAs } = useAuth();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
-
-  const redirecionar = (role: UserRole) => {
-    router.push(role === "empresa" ? "/painel" : role === "admin" ? "/admin" : "/minha-conta");
-  };
-
-  const devLogin = async (role: "consumidor" | "empresa" | "admin") => {
-    setErro(null);
-    setCarregando(true);
-    const result = await loginAs(role);
-    setCarregando(false);
-    if (!result.ok) {
-      setErro(result.error);
-      return;
-    }
-    redirecionar(role);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +57,9 @@ export default function LoginPage() {
           onChange={(e) => setSenha(e.target.value)}
           required
         />
+        <Link href="/recuperar-senha" className="-mt-2 self-end text-xs font-medium text-brand-700 hover:underline">
+          Esqueceu sua senha?
+        </Link>
         {erro && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
             {erro}
@@ -91,42 +77,7 @@ export default function LoginPage() {
         </Link>
       </p>
 
-      <div className="mt-10 w-full rounded-2xl border border-dashed border-ink-300 bg-ink-50/60 p-4">
-        <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-ink-500">
-          Atalhos de desenvolvimento — protótipo
-        </p>
-        <div className="flex flex-col gap-2">
-          <Button
-            variant="outline"
-            fullWidth
-            icon={<User2 size={16} />}
-            disabled={carregando}
-            onClick={() => devLogin("consumidor")}
-          >
-            Entrar como consumidor
-          </Button>
-          <Button
-            variant="outline"
-            fullWidth
-            icon={<Building2 size={16} />}
-            disabled={carregando}
-            onClick={() => devLogin("empresa")}
-          >
-            Entrar como empresa
-          </Button>
-          <Button
-            variant="outline"
-            fullWidth
-            icon={<ShieldCheck size={16} />}
-            disabled={carregando}
-            onClick={() => devLogin("admin")}
-          >
-            Entrar como administrador
-          </Button>
-        </div>
-      </div>
-
-      <LinkButton href="/" variant="ghost" size="sm" className="mt-4">
+      <LinkButton href="/" variant="ghost" size="sm" className="mt-6">
         Voltar para a Home
       </LinkButton>
     </div>

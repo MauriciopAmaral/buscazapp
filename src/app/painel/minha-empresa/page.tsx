@@ -6,13 +6,15 @@ import { Input, Textarea, Select, Button, LoadingState } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { useCurrentCompanyLive } from "@/lib/useCurrentCompany";
 import { NoCompanyState } from "@/components/painel/NoCompanyState";
-import { categories } from "@/mocks/categories";
 import { HorariosEditor } from "./HorariosEditor";
+import type { Category } from "@/types";
 
-// Campos que a API já permite editar (PATCH /api/painel/company). Categoria,
-// endereço e horário ainda não têm endpoint próprio — ficam visíveis mas
+// Campos que a API já permite editar (PATCH /api/painel/company). Endereço
+// e horário ainda não têm endpoint próprio — ficam visíveis mas
 // desabilitados até essa parte do backend existir.
 type CamposEditaveis = "nomeFantasia" | "descricao" | "telefone" | "whatsapp" | "email" | "instagram" | "site";
+
+const NOVA_CATEGORIA = "__nova__";
 
 export default function MinhaEmpresaPage() {
   const { token } = useAuth();
@@ -29,6 +31,22 @@ export default function MinhaEmpresaPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [categorias, setCategorias] = useState<Category[]>([]);
+  const [categoriaId, setCategoriaId] = useState("");
+  const [novaCategoriaNome, setNovaCategoriaNome] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/categories")
+      .then((res) => res.json())
+      .then((json) => {
+        if (!cancelled && json?.success) setCategorias(json.data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!company) return;
@@ -42,18 +60,28 @@ export default function MinhaEmpresaPage() {
       instagram: company.instagram ?? "",
       site: company.site ?? "",
     });
+    setCategoriaId(company.categoriaId);
   }, [company]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
+    if (categoriaId === NOVA_CATEGORIA && !novaCategoriaNome.trim()) {
+      setErro("Digite o nome do novo segmento, ou escolha um da lista.");
+      return;
+    }
     setSaving(true);
     setErro(null);
     try {
+      const payload = {
+        ...form,
+        categoriaId: categoriaId === NOVA_CATEGORIA ? "" : categoriaId,
+        novaCategoriaNome: categoriaId === NOVA_CATEGORIA ? novaCategoriaNome.trim() : undefined,
+      };
       const res = await fetch("/api/painel/company", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.success) {
@@ -107,14 +135,21 @@ export default function MinhaEmpresaPage() {
             <Input label="Razão social" defaultValue={company.razaoSocial} disabled hint="Ainda não editável por aqui" />
             <Input label="CNPJ" defaultValue={company.cnpj} disabled hint="Não pode ser alterado nesta etapa" />
             <div className="flex flex-col gap-1.5">
-              <Select label="Categoria" defaultValue={company.categoriaId} disabled>
-                {categories.map((c) => (
+              <Select label="Segmento" value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)}>
+                {categorias.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nome}
                   </option>
                 ))}
+                <option value={NOVA_CATEGORIA}>Não achei o meu — cadastrar um novo</option>
               </Select>
-              <span className="text-xs text-ink-400">Ainda não editável por aqui</span>
+              {categoriaId === NOVA_CATEGORIA && (
+                <Input
+                  placeholder="Nome do segmento (ex: Gráfica)"
+                  value={novaCategoriaNome}
+                  onChange={(e) => setNovaCategoriaNome(e.target.value)}
+                />
+              )}
             </div>
           </div>
           <Textarea
