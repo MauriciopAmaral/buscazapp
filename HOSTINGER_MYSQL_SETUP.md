@@ -284,6 +284,23 @@ Corrigido adicionando `export const dynamic = "force-dynamic"` nessas 5 páginas
 
 Não exige `db push` nem variável de ambiente nova — é só código.
 
+## Atualização: todas as cidades do Brasil direto por SQL (`cidades_insert.sql`)
+
+Igual fizemos com as categorias, vai junto na raiz do projeto o arquivo **`cidades_insert.sql`** com os **5.571 municípios do Brasil** (todos os 26 estados + DF), prontos pra inserir direto no banco pelo phpMyAdmin — sem precisar clicar no botão "Importar cidades" do admin (que também funciona, mas demora ~1 minuto fazendo uma chamada por estado; o SQL faz tudo de uma vez).
+
+**Fonte dos dados**: dataset público [kelvins/municipios-brasileiros](https://github.com/kelvins/municipios-brasileiros) no GitHub, amplamente usado pela comunidade de devs brasileira, com nome e UF de cada município — a mesma informação que viria da API do IBGE (código, nome, UF), só que já baixada e pronta, sem depender da API do IBGE responder na hora.
+
+**Como usar**:
+
+1. No hPanel, abra o **phpMyAdmin** do banco `u129712343_buscazapp`.
+2. Vá na aba **Importar** (não "SQL" dessa vez — o arquivo é grande, ~273 KB, e a aba Importar lida melhor com arquivos grandes que colar direto na caixa de SQL).
+3. Clique em **Escolher arquivo**, selecione o `cidades_insert.sql` (está na raiz do zip do projeto).
+4. Clique em **Executar/Go**.
+
+Vai levar alguns segundos. Como uso `INSERT IGNORE` e a tabela `City` tem uma trava de nome+estado repetido, as 5 cidades que você já tinha (Belém, Ananindeua, Castanhal, Marituba, Benevides) não duplicam — só entram as novas.
+
+Depois é só conferir em **Admin → Cidades** e **Admin → Estados** — essas telas do admin já buscam sempre direto no banco (sem cache), então aparecem atualizadas assim que você atualizar a página, sem precisar de deploy novo.
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).
