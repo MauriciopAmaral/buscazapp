@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Mail, Lock, User2, Building2, ShieldCheck } from "lucide-react";
 import { Button, Input, LinkButton } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
-import { cn } from "@/lib/utils";
+import { cn, dashboardHrefForRole } from "@/lib/utils";
 
 export function CadastroClient() {
   const router = useRouter();
@@ -30,7 +30,7 @@ export function CadastroClient() {
       setErro(result.error);
       return;
     }
-    router.push(role === "empresa" ? "/painel" : role === "admin" ? "/admin" : "/minha-conta");
+    router.push(dashboardHrefForRole(role));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

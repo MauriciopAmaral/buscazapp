@@ -3,9 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { Menu, X, Search, Tag, Ticket, Building2, User as UserIcon, Utensils } from "lucide-react";
+import { Menu, X, Search, Tag, Ticket, Building2, User as UserIcon, Utensils, LayoutDashboard } from "lucide-react";
 import { Button, LinkButton } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
+import { dashboardHrefForRole } from "@/lib/utils";
 
 const navLinks = [
   { href: "/", label: "Início" },
@@ -105,6 +106,15 @@ export function Header({ siteName = "BuscaZapp", logoUrl }: HeaderProps) {
                 <span className="flex items-center gap-2 px-3 text-sm text-ink-600">
                   <UserIcon size={16} /> {user.nome}
                 </span>
+                <LinkButton
+                  href={dashboardHrefForRole(user.role)}
+                  variant="primary"
+                  size="sm"
+                  icon={<LayoutDashboard size={16} />}
+                  onClick={() => setOpen(false)}
+                >
+                  {user.role === "empresa" ? "Painel da empresa" : user.role === "admin" ? "Painel administrativo" : "Minha conta"}
+                </LinkButton>
                 <Button variant="outline" size="sm" onClick={logout}>
                   Sair
                 </Button>
@@ -135,7 +145,7 @@ function UserMenu({
   role: string;
   onLogout: () => void;
 }) {
-  const dashboardHref = role === "empresa" ? "/painel" : role === "admin" ? "/admin" : "/minha-conta";
+  const dashboardHref = dashboardHrefForRole(role);
   return (
     <div className="flex items-center gap-3">
       <Link

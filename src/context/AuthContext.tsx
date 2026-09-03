@@ -7,15 +7,15 @@ interface AuthContextValue {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, senha: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  login: (email: string, senha: string) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
   register: (
     nome: string,
     email: string,
     senha: string,
     role: "consumidor" | "empresa"
-  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  ) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
   /** Atalho de desenvolvimento: loga com uma das contas de teste já semeadas no banco. */
-  loginAs: (role: UserRole) => Promise<{ ok: true } | { ok: false; error: string }>;
+  loginAs: (role: UserRole) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
   logout: () => void;
   /**
    * Atualiza a sessão com um token/usuário novos vindos de outra rota que não
@@ -133,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await apiCall<{ token: string; user: User }>("/auth/login", { email, senha });
     if (!result.ok) return result;
     persist(result.data.token, result.data.user);
-    return { ok: true };
+    return { ok: true, user: result.data.user };
   };
 
   const register: AuthContextValue["register"] = async (nome, email, senha, role) => {
@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (!result.ok) return result;
     persist(result.data.token, result.data.user);
-    return { ok: true };
+    return { ok: true, user: result.data.user };
   };
 
   const loginAs: AuthContextValue["loginAs"] = async (role) => {

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Mail, Lock } from "lucide-react";
 import { Button, Input, LinkButton } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
+import { dashboardHrefForRole } from "@/lib/utils";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,8 +27,12 @@ export default function LoginPage() {
       setErro(result.error);
       return;
     }
-    // O papel do usuário só é conhecido depois do login — pega da resposta salva no contexto.
-    router.push("/minha-conta");
+    // Cada papel tem sua própria área — empresa e admin vão direto pro
+    // painel deles, sem passar pela tela "Minha conta" (que é só do
+    // consumidor). Sem isso, empresa/admin logavam e ficavam numa tela
+    // errada, principalmente perceptível no celular, onde não tinha outro
+    // link visível pra ir até o painel certo.
+    router.push(dashboardHrefForRole(result.user.role));
   };
 
   return (

@@ -515,6 +515,16 @@ A própria home do painel admin (`/admin`) ainda estava 100% no mockup antigo �
 
 Não exige `db push` nem variável de ambiente nova.
 
+## Atualização: login redireciona pro lugar certo (e o celular ganhou o link pro painel)
+
+Achei um bug real: depois de logar, a tela de login sempre mandava todo mundo pra `/minha-conta` — não importava se era um consumidor, uma empresa ou o admin. Isso não tinha nada a ver com ser celular ou computador; só ficava mais visível no celular porque lá não tinha nenhum outro link visível pra chegar no painel certo (no computador dava pra clicar no nome no canto superior direito, que já ia pro lugar certo).
+
+- **Login agora manda cada papel pro lugar certo**: consumidor vai pra "Minha conta", empresa vai direto pro painel dela (`/painel`), admin vai direto pro painel administrativo (`/admin`).
+- **Menu do celular (☰) ganhou um botão pro painel** quando a pessoa está logada — antes só mostrava o nome e o botão "Sair", sem nenhum jeito de chegar no painel pelo celular. Agora aparece "Painel da empresa" ou "Painel administrativo" (ou "Minha conta", pro consumidor), e ao entrar num desses painéis o menu hambúrguer que aparece já passa a ser o da área certa (o painel/admin tem menu próprio, diferente do menu do site público) — é a troca de "sair da página normal e ir pra área" que você pediu.
+- **Tela "Minha conta"**: quando quem está logado é dono de empresa ou é admin, agora aparece um bloco em destaque no topo com um botão "Ir para o painel da empresa" (ou "...administrativo"), com uma frase explicando o que tem lá — fica fácil de achar mesmo se a pessoa cair nessa tela por engano.
+
+Não exige `db push` nem variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
 Com essa atualização, **todas as telas do menu Admin listadas no painel — incluindo a própria página inicial (Dashboard) — estão funcionando com dados reais** (Empresas, Empresas não reivindicadas, Usuários, Categorias, Bairros/dados de referência, Promoções, Cupons, Planos, Assinaturas, Financeiro, Anúncios, Prospecção, Relatórios e Configurações). O que ainda fica de fora dessa etapa, pra quando quiser continuar:

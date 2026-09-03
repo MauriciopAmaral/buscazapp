@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect } from "react";
-import { Heart, LogOut, Settings, Ticket, Wallet } from "lucide-react";
+import { Heart, LayoutDashboard, LogOut, Settings, ShieldCheck, Ticket, Wallet } from "lucide-react";
 import { LinkButton, Button } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { useFavorites } from "@/context/FavoritesContext";
@@ -30,6 +30,29 @@ export default function MinhaContaPage() {
           <p className="text-sm text-ink-500">{user.email}</p>
         </div>
       </div>
+
+      {(user.role === "empresa" || user.role === "admin") && (
+        <div className="mt-6 flex flex-col items-start justify-between gap-4 rounded-2xl border border-brand-200 bg-brand-50/60 p-5 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600 text-white">
+              {user.role === "admin" ? <ShieldCheck size={20} /> : <LayoutDashboard size={20} />}
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-ink-900">
+                {user.role === "admin" ? "Você tem acesso ao painel administrativo" : "Você tem uma empresa cadastrada"}
+              </p>
+              <p className="text-xs text-ink-500">
+                {user.role === "admin"
+                  ? "Gerencie empresas, usuários, planos e todas as áreas da plataforma."
+                  : "Veja e edite os dados, fotos, promoções, cupons, leads e financeiro da sua empresa em um só lugar."}
+              </p>
+            </div>
+          </div>
+          <LinkButton href={user.role === "admin" ? "/admin" : "/painel"} icon={<LayoutDashboard size={16} />}>
+            {user.role === "admin" ? "Ir para o painel administrativo" : "Ir para o painel da empresa"}
+          </LinkButton>
+        </div>
+      )}
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MenuCard href="/favoritos" icon={<Heart size={18} />} title="Favoritos" subtitle={`${favoriteIds.length} salvos`} />

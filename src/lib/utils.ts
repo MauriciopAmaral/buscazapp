@@ -4,6 +4,19 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
 }
 
+/**
+ * Pra onde levar o usuário depois de logar (ou ao clicar em "Minha conta"
+ * no cabeçalho): cada papel tem sua própria área — empresa vai pro painel
+ * dela, admin vai pro painel administrativo, e consumidor vai pra tela de
+ * conta normal. Usado tanto no login/cadastro (desktop e mobile) quanto no
+ * menu do cabeçalho, pra nunca ficar um lugar decidindo diferente do outro.
+ */
+export function dashboardHrefForRole(role: "consumidor" | "empresa" | "admin" | string) {
+  if (role === "empresa") return "/painel";
+  if (role === "admin") return "/admin";
+  return "/minha-conta";
+}
+
 export function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }

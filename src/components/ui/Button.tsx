@@ -37,6 +37,7 @@ interface ButtonProps extends BaseProps, Omit<ButtonHTMLAttributes<HTMLButtonEle
 interface LinkButtonProps extends BaseProps {
   href: string;
   target?: string;
+  onClick?: () => void;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
@@ -72,11 +73,13 @@ export function LinkButton({
   children,
   href,
   target,
+  onClick,
 }: LinkButtonProps) {
   return (
     <Link
       href={href}
       target={target}
+      onClick={onClick}
       className={cn(
         "inline-flex items-center justify-center font-medium transition-colors",
         variantStyles[variant],
