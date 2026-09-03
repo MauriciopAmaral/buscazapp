@@ -380,6 +380,17 @@ Essa tela também era só mockup. Agora:
 
 Não exige `db push` nem variável de ambiente nova.
 
+## Atualização: Admin → Cupons, mesma ideia de Promoções
+
+Mesmo tratamento da tela de Promoções, agora em **Admin → Cupons**:
+
+- Lista os cupons reais de todas as empresas, com o nome da empresa junto.
+- **Busca** por título, código do cupom ou nome da empresa.
+- **Filtro rápido por status** (Todos / Ativos / Expirados / Utilizados / Desativados).
+- **Desativar/Ativar** e **Excluir**, direto na lista, com confirmação antes de excluir.
+
+Não exige `db push` nem variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).
