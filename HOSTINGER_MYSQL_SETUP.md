@@ -441,9 +441,20 @@ Detalhe técnico: a tabela `Ad` no banco não tem uma coluna própria de cidade 
 
 Não exige `db push` nem variável de ambiente nova.
 
+## Atualização: Admin → Prospecção, quadro Kanban real com adicionar e excluir
+
+O quadro de prospecção (Admin → Prospecção) agora lê e grava direto na tabela `Prospect` — antes era só o mockup fixo, e nem o botão "Iniciar prospecção" (em Empresas não reivindicadas) aparecia refletido aqui.
+
+- **Adicionar empresa**: botão no topo abre uma busca (por nome ou cidade) entre as empresas que ainda não estão no funil; ao escolher uma, ela entra na coluna "Novo".
+- **Avançar etapa**: continua funcionando como antes, mas agora salva o novo status no banco.
+- **Excluir**: cada card ganhou um ícone de lixeira pra tirar a empresa do funil (com confirmação) — não apaga a empresa, só o card de prospecção dela.
+- O telefone mostrado no card prioriza o WhatsApp cadastrado da empresa, caindo pro telefone comum se ela não tiver WhatsApp.
+
+Não exige `db push` nem variável de ambiente nova (a tabela `Prospect` já existia no schema).
+
 ## O que ainda falta (próxima etapa)
 
-1. **Relatórios e Prospecção (quadro Kanban)** — a prospecção já tem o botão "Iniciar prospecção" salvando de verdade na tabela `Prospect`, mas a tela do quadro Kanban em si ainda não lê esses dados reais. Relatórios ainda não tem endpoint próprio.
+1. **Relatórios** ainda não tem endpoint próprio conectado ao banco.
 2. **Configurações do admin** ainda não foram conectadas ao banco.
 3. **Validação de verdade na reivindicação de perfil e no "esqueci minha senha"** (enviar código/link por e-mail/SMS real, em vez de mostrar na tela) — precisa de um serviço de envio (ex: Resend pra e-mail, alguma API de SMS) configurado com chave de API.
 
