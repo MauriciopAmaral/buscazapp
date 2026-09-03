@@ -486,3 +486,16 @@ model Ad {
 
   @@index([companyId])
 }
+
+// Linha única de configurações gerais da plataforma (Admin → Configurações).
+// Sempre um único registro, com id fixo "singleton" — lido/gravado por
+// GET/PATCH em /api/admin/settings (e a parte pública em /api/settings).
+model PlatformSettings {
+  id                            String   @id @default("singleton")
+  nomePlataforma                String   @default("BuscaZapp")
+  emailSuporte                  String   @default("suporte@buscazapp.com.br")
+  notificarReivindicacoes       Boolean  @default(true)
+  notificarPagamentosPendentes  Boolean  @default(true)
+  modoManutencao                Boolean  @default(false)
+  updatedAt                     DateTime @updatedAt
+}

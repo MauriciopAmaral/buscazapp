@@ -466,10 +466,24 @@ O botão "Exportar" continua desativado — segue como próximo passo, se quiser
 
 Não exige `db push` nem variável de ambiente nova.
 
+## Atualização: Admin → Configurações, agora salvando de verdade (e modo manutenção que funciona)
+
+Essa tela era 100% decorativa — os campos e checkboxes existiam, mas o botão "Salvar configurações" não fazia nada e nada era lido do banco. Agora:
+
+- **Precisa rodar `npx prisma db push`** — essa é a única atualização desse grupo que muda o schema: entrou uma tabela nova, `PlatformSettings`, com um único registro fixo (`id = "singleton"`) guardando as configurações da plataforma. Ela se cria sozinha com os valores padrão na primeira vez que alguém abre a tela ou visita o site (mesmo esquema de "self-healing" já usado em Admin → Planos), então não precisa rodar nenhum script manual além do `db push`.
+- **Nome da plataforma** e **e-mail de suporte** agora salvam de verdade.
+- Os dois toggles de **notificação interna** (novas reivindicações / pagamentos pendentes) salvam o estado, prontos pra quando eu ligar o envio de e-mail/WhatsApp de verdade pra equipe (hoje eles só guardam a preferência, ainda não disparam nada sozinhos).
+- O **modo manutenção** agora faz o que o nome promete: quando ligado, qualquer visitante do site público vê uma tela de manutenção (`/manutencao`) em vez do site normal. `/admin` e `/login` continuam liberados, então você (ou outro admin) sempre consegue entrar e desligar o modo manutenção de novo, mesmo com ele ativado. Se por algum motivo a checagem falhar (ex: banco fora do ar num instante ruim), o site é liberado normalmente em vez de travar tudo.
+- Tecnicamente, isso foi implementado no arquivo `src/proxy.ts` (o "Proxy" do Next.js 16 — versão renomeada do antigo `middleware.ts`), que já existia só pra liberar CORS das rotas `/api/*`; agora ele também checa `/api/settings` (rota pública, só com os campos não sensíveis) antes de deixar passar uma página pública.
+
+Depois do `db push`, não precisa de nenhuma variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
-1. **Exportar relatórios** (CSV/PDF) — hoje o botão "Exportar" existe na tela mas fica desativado.
-2. **Configurações do admin** ainda não foram conectadas ao banco.
+Com essa atualização, **todas as telas do menu Admin listadas no painel estão funcionando com dados reais** (Empresas, Empresas não reivindicadas, Usuários, Categorias, Bairros/dados de referência, Promoções, Cupons, Planos, Assinaturas, Financeiro, Anúncios, Prospecção, Relatórios e Configurações). O que ainda fica de fora dessa etapa, pra quando quiser continuar:
+
+1. **Exportar relatórios** (CSV/PDF) — hoje o botão "Exportar" existe na tela de Relatórios mas fica desativado.
+2. **Disparo automático das notificações internas** (e-mail/WhatsApp real pra equipe quando entra uma reivindicação nova ou um pagamento fica pendente) — hoje só existe o toggle de preferência salvo; o envio em si ainda não está automatizado.
 3. **Validação de verdade na reivindicação de perfil e no "esqueci minha senha"** (enviar código/link por e-mail/SMS real, em vez de mostrar na tela) — precisa de um serviço de envio (ex: Resend pra e-mail, alguma API de SMS) configurado com chave de API.
 
 Me diz por qual desses quer que eu continue — ou me passa as credenciais de FTP do item acima que eu já deixo o upload de fotos funcionando em produção.
