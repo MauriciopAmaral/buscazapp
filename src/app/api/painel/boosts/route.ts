@@ -85,7 +85,12 @@ export async function POST(request: NextRequest) {
           },
           auto_return: "approved",
           statement_descriptor: "BUSCAZAPP",
-          payer: company.email ? { email: company.email } : undefined,
+          // Não manda o e-mail da empresa como "payer": se algum dia ele bater
+          // com o e-mail da própria conta Mercado Pago que está recebendo o
+          // pagamento (o "collector" — ex: ao testar com a conta do próprio
+          // dono do site), o Mercado Pago recusa a preferência inteira com um
+          // erro tipo "payer email cannot be the same as collector". Deixando
+          // em branco, a pessoa só digita o e-mail dela na hora de pagar.
         },
       });
 
@@ -96,12 +101,24 @@ export async function POST(request: NextRequest) {
 
       return ok({ boostId: boost.id, initPoint: preference.init_point });
     } catch (mpErr) {
-      // A preferência falhou (ex: token inválido) — não deixa o Boost órfão em "pendente" pra sempre.
+      // A preferência falhou (ex: token inválido, dado rejeitado pelo Mercado Pago) —
+      // não deixa o Boost órfão em "pendente" pra sempre.
       await prisma.boost.update({ where: { id: boost.id }, data: { status: "cancelado" } });
       throw mpErr;
     }
   } catch (err) {
-    console.error("[POST /api/painel/boosts]", err);
-    return serverError("Não foi possível iniciar o pagamento. Tente novamente em instantes.");
+    // O erro do SDK do Mercado Pago (quando é isso que falhou) nunca inclui o
+    // Access Token — só o corpo da resposta da API deles — então é seguro
+    // logar/expor a mensagem pra facilitar o diagnóstico.
+    const mp = err as { status?: number; message?: string; error?: string; causes?: unknown };
+    console.error("[POST /api/painel/boosts]", {
+      status: mp?.status,
+      message: mp?.message,
+      error: mp?.error,
+      causes: mp?.causes,
+      raw: err,
+    });
+    const detalhe = mp?.message ? ` (${mp.message})` : "";
+    return serverError(`Não foi possível iniciar o pagamento. Tente novamente em instantes.${detalhe}`);
   }
 }
