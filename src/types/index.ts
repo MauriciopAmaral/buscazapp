@@ -211,6 +211,10 @@ export interface Subscription {
 export interface Payment {
   id: string;
   companyId: string;
+  /** Presentes quando o pagamento vem da API/banco — evita ter que procurar nos mocks. */
+  companyNome?: string;
+  companySlug?: string;
+  companyWhatsapp?: string;
   data: string;
   valor: number;
   status: "pago" | "pendente" | "falhou";

@@ -414,6 +414,19 @@ Detalhe técnico: o nome do plano é buscado à parte porque `Subscription.plano
 
 Não exige `db push` nem variável de ambiente nova.
 
+## Atualização: Admin → Financeiro, últimos pagamentos com busca, filtro e cobrança pelo WhatsApp
+
+Os cards de topo (Receita recebida, MRR, Pendentes) e a tabela de "Últimos pagamentos" agora vêm do banco de verdade, e a tabela ganhou:
+
+- **Busca** por empresa ou descrição do lançamento.
+- **Filtro rápido por status** (Todos / Pagos / Pendentes / Falharam).
+- **Trocar status na hora** — um seletor direto na linha (Pago/Pendente/Falhou), pra conciliar manualmente um pagamento que caiu na conta mas ainda estava marcado como pendente, por exemplo.
+- **Excluir** um lançamento errado, com confirmação antes.
+- **"Cobrar no Zap"** (pedido à parte, mas entrou junto): em pagamentos que não estão como "Pago", aparece um link que abre o WhatsApp já com uma mensagem de cobrança pronta, puxando o WhatsApp cadastrado da empresa — funciona do mesmo jeito que o "Enviar por WhatsApp" que já existe em outros lugares do site (usa `wa.me`, então abre o WhatsApp Web ou o app, sem precisar de nenhuma conta ou API paga). Se a empresa não tiver WhatsApp cadastrado, mostra "Sem WhatsApp" no lugar do link. **Importante**: isso abre uma conversa pra você mandar manualmente — não é um envio automático, porque isso exigiria a API oficial do WhatsApp Business (paga, com aprovação da Meta); se quiser automatizar de verdade no futuro, dá pra integrar depois.
+- O **MRR** passou a somar só as assinaturas com status "ativa" (antes, o mockup somava todas, incluindo canceladas e atrasadas).
+
+Não exige `db push` nem variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).
