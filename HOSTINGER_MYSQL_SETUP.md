@@ -391,6 +391,16 @@ Mesmo tratamento da tela de Promoções, agora em **Admin → Cupons**:
 
 Não exige `db push` nem variável de ambiente nova.
 
+## Atualização: Admin → Planos, o botão Editar agora salva de verdade
+
+Essa tela já tinha o formulário de editar preços, mas era só aparência — as alterações ficavam só na tela (sumiam ao atualizar a página) porque não existia uma rota de API por trás. Curiosamente, o banco já tinha uma tabela `Plan` prevista desde o começo do projeto (só faltava ligar), então não precisou mudar o schema:
+
+- **Editar** agora salva de verdade no banco: preço mensal, trimestral e anual, nome do plano, se ele aparece em destaque, e a lista de recursos (um por linha, no formulário).
+- O número de "assinantes" mostrado em cada card passou a ser contado de verdade (quantas empresas estão em cada plano), em vez do número fixo que vinha do mockup.
+- Se o banco nunca teve os 4 planos cadastrados (ex: o `seed.ts` completo nunca rodou), a tela cria eles sozinha na primeira vez que é aberta, com os mesmos valores padrão que sempre existiram no site — então não precisa de nenhum passo manual extra.
+
+Não exige `db push` nem variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).
