@@ -4,6 +4,7 @@ import { LinkButton, Badge } from "@/components/ui";
 import { CompanyCard, CategoryCard, OfferCard, CouponCard } from "@/components/domain";
 import { getCategories } from "@/lib/categoryData";
 import { getCompanies, getFeaturedCompanies, getActivePromotions, getActiveCoupons } from "@/lib/companyData";
+import { getOrCreateSettings } from "@/lib/settings";
 import { HomeSearchForm } from "./HomeSearchForm";
 import { NearbyCompanies } from "./NearbyCompanies";
 
@@ -13,12 +14,13 @@ import { NearbyCompanies } from "./NearbyCompanies";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const settings = await getOrCreateSettings();
   const [categories, nearbyCompanies, featuredCompanies, activePromotions, activeCoupons] = await Promise.all([
-    getCategories(),
-    getCompanies(8),
-    getFeaturedCompanies(6),
-    getActivePromotions(4),
-    getActiveCoupons(4),
+    settings.mostrarCategoriasPopulares ? getCategories() : Promise.resolve([]),
+    settings.mostrarEmpresasPertoDeVoce ? getCompanies(8) : Promise.resolve([]),
+    settings.mostrarEmpresasDestaque ? getFeaturedCompanies(6) : Promise.resolve([]),
+    settings.mostrarOfertas ? getActivePromotions(4) : Promise.resolve([]),
+    settings.mostrarCupons ? getActiveCoupons(4) : Promise.resolve([]),
   ]);
   const popularCategories = categories.slice(0, 8);
 
@@ -46,54 +48,64 @@ export default async function HomePage() {
       </section>
 
       {/* Categorias populares */}
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-        <SectionHeader title="Categorias populares" href="/categorias" />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
-          {popularCategories.map((cat) => (
-            <CategoryCard key={cat.id} category={cat} />
-          ))}
-        </div>
-      </section>
-
-      {/* Empresas perto de você */}
-      <section className="border-t border-ink-100 bg-ink-50/40 py-12">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <SectionHeader title="Empresas perto de você" href="/buscar" />
-          <NearbyCompanies companies={nearbyCompanies} />
-        </div>
-      </section>
-
-      {/* Ofertas */}
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-        <SectionHeader title="Ofertas perto de você" href="/ofertas" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {activePromotions.map((promo) => (
-            <OfferCard key={promo.id} promotion={promo} />
-          ))}
-        </div>
-      </section>
-
-      {/* Cupons */}
-      <section className="border-t border-ink-100 bg-ink-50/40 py-12">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <SectionHeader title="Cupons para você economizar" href="/cupons" />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {activeCoupons.map((coupon) => (
-              <CouponCard key={coupon.id} coupon={coupon} />
+      {settings.mostrarCategoriasPopulares && (
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+          <SectionHeader title="Categorias populares" href="/categorias" />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+            {popularCategories.map((cat) => (
+              <CategoryCard key={cat.id} category={cat} />
             ))}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
+
+      {/* Empresas perto de você */}
+      {settings.mostrarEmpresasPertoDeVoce && (
+        <section className="border-t border-ink-100 bg-ink-50/40 py-12">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <SectionHeader title="Empresas perto de você" href="/buscar" />
+            <NearbyCompanies companies={nearbyCompanies} />
+          </div>
+        </section>
+      )}
+
+      {/* Ofertas */}
+      {settings.mostrarOfertas && (
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+          <SectionHeader title="Ofertas perto de você" href="/ofertas" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {activePromotions.map((promo) => (
+              <OfferCard key={promo.id} promotion={promo} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Cupons */}
+      {settings.mostrarCupons && (
+        <section className="border-t border-ink-100 bg-ink-50/40 py-12">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <SectionHeader title="Cupons para você economizar" href="/cupons" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {activeCoupons.map((coupon) => (
+                <CouponCard key={coupon.id} coupon={coupon} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Empresas em destaque */}
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
-        <SectionHeader title="Empresas em destaque" href="/buscar" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {featuredCompanies.map((company) => (
-            <CompanyCard key={company.id} company={company} />
-          ))}
-        </div>
-      </section>
+      {settings.mostrarEmpresasDestaque && (
+        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+          <SectionHeader title="Empresas em destaque" href="/buscar" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {featuredCompanies.map((company) => (
+              <CompanyCard key={company.id} company={company} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* CTA empresas */}
       <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6">

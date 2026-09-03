@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUserWithRole } from "@/lib/apiAuth";
 import { badRequest, ok, serverError, unauthorized } from "@/lib/apiResponse";
 import { getOrCreateSettings } from "@/lib/settings";
+import { isPaletaValida } from "@/lib/palettes";
 
 // GET /api/admin/settings — configurações completas (inclui os toggles de
 // notificação interna), pra tela Admin → Configurações.
@@ -34,9 +35,17 @@ export async function PATCH(request: NextRequest) {
     const data: {
       nomePlataforma?: string;
       emailSuporte?: string;
+      logoUrl?: string | null;
+      paletaCor?: string;
       notificarReivindicacoes?: boolean;
       notificarPagamentosPendentes?: boolean;
       modoManutencao?: boolean;
+      mostrarCategoriasPopulares?: boolean;
+      mostrarEmpresasPertoDeVoce?: boolean;
+      mostrarOfertas?: boolean;
+      mostrarCupons?: boolean;
+      mostrarEmpresasDestaque?: boolean;
+      rodapeTexto?: string;
     } = {};
 
     if (typeof body.nomePlataforma === "string") {
@@ -49,9 +58,22 @@ export async function PATCH(request: NextRequest) {
       if (!email.includes("@")) return badRequest("Informe um e-mail de suporte válido.");
       data.emailSuporte = email;
     }
+    if (typeof body.logoUrl === "string" || body.logoUrl === null) {
+      data.logoUrl = typeof body.logoUrl === "string" ? body.logoUrl.trim() || null : null;
+    }
+    if (typeof body.paletaCor === "string") {
+      if (!isPaletaValida(body.paletaCor)) return badRequest("Paleta de cor inválida.");
+      data.paletaCor = body.paletaCor;
+    }
     if (typeof body.notificarReivindicacoes === "boolean") data.notificarReivindicacoes = body.notificarReivindicacoes;
     if (typeof body.notificarPagamentosPendentes === "boolean") data.notificarPagamentosPendentes = body.notificarPagamentosPendentes;
     if (typeof body.modoManutencao === "boolean") data.modoManutencao = body.modoManutencao;
+    if (typeof body.mostrarCategoriasPopulares === "boolean") data.mostrarCategoriasPopulares = body.mostrarCategoriasPopulares;
+    if (typeof body.mostrarEmpresasPertoDeVoce === "boolean") data.mostrarEmpresasPertoDeVoce = body.mostrarEmpresasPertoDeVoce;
+    if (typeof body.mostrarOfertas === "boolean") data.mostrarOfertas = body.mostrarOfertas;
+    if (typeof body.mostrarCupons === "boolean") data.mostrarCupons = body.mostrarCupons;
+    if (typeof body.mostrarEmpresasDestaque === "boolean") data.mostrarEmpresasDestaque = body.mostrarEmpresasDestaque;
+    if (typeof body.rodapeTexto === "string") data.rodapeTexto = body.rodapeTexto.trim();
 
     const settings = await prisma.platformSettings.update({ where: { id: "singleton" }, data });
     return ok(settings);

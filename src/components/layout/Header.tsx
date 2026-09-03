@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { Menu, X, Search, Tag, Ticket, Building2, User as UserIcon, Utensils } from "lucide-react";
 import { Button, LinkButton } from "@/components/ui";
@@ -15,7 +16,12 @@ const navLinks = [
   { href: "/para-empresas", label: "Para empresas" },
 ];
 
-export function Header() {
+interface HeaderProps {
+  siteName?: string;
+  logoUrl?: string | null;
+}
+
+export function Header({ siteName = "BuscaZapp", logoUrl }: HeaderProps) {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
 
@@ -23,12 +29,16 @@ export function Header() {
     <header className="sticky top-0 z-40 border-b border-ink-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white font-bold">
-            B
-          </span>
-          <span className="text-lg font-bold text-ink-900">
-            Busca<span className="text-brand-600">Zapp</span>
-          </span>
+          {logoUrl ? (
+            <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl">
+              <Image src={logoUrl} alt={siteName} fill className="object-cover" unoptimized />
+            </span>
+          ) : (
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white font-bold">
+              {siteName.charAt(0).toUpperCase()}
+            </span>
+          )}
+          <span className="text-lg font-bold text-ink-900">{siteName}</span>
         </Link>
 
         <nav className="hidden items-center gap-6 lg:flex">

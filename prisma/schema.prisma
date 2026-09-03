@@ -494,8 +494,24 @@ model PlatformSettings {
   id                            String   @id @default("singleton")
   nomePlataforma                String   @default("BuscaZapp")
   emailSuporte                  String   @default("suporte@buscazapp.com.br")
+  logoUrl                       String?
+  paletaCor                     String   @default("verde")
   notificarReivindicacoes       Boolean  @default(true)
   notificarPagamentosPendentes  Boolean  @default(true)
   modoManutencao                Boolean  @default(false)
+
+  // Visibilidade dos módulos da home pública — desligar aqui esconde a
+  // seção inteira, sem precisar mexer em código.
+  mostrarCategoriasPopulares    Boolean  @default(true)
+  mostrarEmpresasPertoDeVoce    Boolean  @default(true)
+  mostrarOfertas                Boolean  @default(true)
+  mostrarCupons                 Boolean  @default(true)
+  mostrarEmpresasDestaque       Boolean  @default(true)
+
+  // Texto livre que aparece no rodapé, depois de "© {ano} {nome da
+  // plataforma}." (o ano e o nome são sempre calculados na hora, pra nunca
+  // ficar desatualizado).
+  rodapeTexto                   String   @default("Protótipo com dados fictícios — nenhuma informação aqui é real.")
+
   updatedAt                     DateTime @updatedAt
 }

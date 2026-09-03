@@ -11,10 +11,19 @@ interface ImageUploadFieldProps {
   label?: string;
   onUploaded: (url: string) => void;
   className?: string;
+  /** Rota de upload. Padrão: /api/painel/upload (empresa). Admin → Configurações usa /api/admin/upload. */
+  endpoint?: string;
 }
 
-/** Botão de upload de imagem — envia pra POST /api/painel/upload e devolve a URL pública via onUploaded. */
-export function ImageUploadField({ token, pasta, label = "Enviar imagem", onUploaded, className }: ImageUploadFieldProps) {
+/** Botão de upload de imagem — envia pro endpoint informado e devolve a URL pública via onUploaded. */
+export function ImageUploadField({
+  token,
+  pasta,
+  label = "Enviar imagem",
+  onUploaded,
+  className,
+  endpoint = "/api/painel/upload",
+}: ImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -27,7 +36,7 @@ export function ImageUploadField({ token, pasta, label = "Enviar imagem", onUplo
       const formData = new FormData();
       formData.append("file", file);
       formData.append("pasta", pasta);
-      const res = await fetch("/api/painel/upload", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,

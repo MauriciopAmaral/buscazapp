@@ -1,17 +1,37 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Globe, Bell, Shield, Check } from "lucide-react";
-import { Input, Button, LoadingState } from "@/components/ui";
+import Image from "next/image";
+import { Globe, Bell, Shield, Check, Palette, LayoutGrid, PenLine, Trash2 } from "lucide-react";
+import { Input, Textarea, Button, LoadingState } from "@/components/ui";
+import { ImageUploadField } from "@/components/painel/ImageUploadField";
 import { useAuth } from "@/context/AuthContext";
+import { PALETAS, PALETA_LABELS, PaletaKey } from "@/lib/palettes";
+import { cn } from "@/lib/utils";
 
 interface Settings {
   nomePlataforma: string;
   emailSuporte: string;
+  logoUrl: string | null;
+  paletaCor: string;
   notificarReivindicacoes: boolean;
   notificarPagamentosPendentes: boolean;
   modoManutencao: boolean;
+  mostrarCategoriasPopulares: boolean;
+  mostrarEmpresasPertoDeVoce: boolean;
+  mostrarOfertas: boolean;
+  mostrarCupons: boolean;
+  mostrarEmpresasDestaque: boolean;
+  rodapeTexto: string;
 }
+
+const MODULOS_HOME: { key: keyof Settings; label: string }[] = [
+  { key: "mostrarCategoriasPopulares", label: "Categorias populares" },
+  { key: "mostrarEmpresasPertoDeVoce", label: "Empresas perto de você" },
+  { key: "mostrarOfertas", label: "Ofertas perto de você" },
+  { key: "mostrarCupons", label: "Cupons para você economizar" },
+  { key: "mostrarEmpresasDestaque", label: "Empresas em destaque" },
+];
 
 export default function AdminConfiguracoesPage() {
   const { token } = useAuth();
@@ -91,7 +111,96 @@ export default function AdminConfiguracoesPage() {
             value={settings.emailSuporte}
             onChange={(e) => setSettings({ ...settings, emailSuporte: e.target.value })}
           />
+
+          <div>
+            <label className="text-sm font-medium text-ink-700">Logo do site</label>
+            <div className="mt-1.5 flex items-center gap-3">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-ink-200 bg-ink-50">
+                {settings.logoUrl ? (
+                  <Image src={settings.logoUrl} alt="Logo atual" width={56} height={56} className="h-full w-full object-cover" unoptimized />
+                ) : (
+                  <span className="text-lg font-bold text-brand-600">{settings.nomePlataforma.charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+              <ImageUploadField
+                token={token}
+                pasta="logo"
+                endpoint="/api/admin/upload"
+                label={settings.logoUrl ? "Trocar logo" : "Enviar logo"}
+                onUploaded={(url) => setSettings({ ...settings, logoUrl: url })}
+              />
+              {settings.logoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setSettings({ ...settings, logoUrl: null })}
+                  className="flex items-center gap-1 text-xs font-medium text-red-600 hover:underline"
+                  title="Remover logo (volta pro ícone com a inicial do nome)"
+                >
+                  <Trash2 size={13} /> Remover
+                </button>
+              )}
+            </div>
+            <p className="mt-1.5 text-xs text-ink-400">JPG, PNG ou WEBP, até 4MB. Sem logo, usa a inicial do nome da plataforma.</p>
+          </div>
         </div>
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-ink-200 bg-white p-5">
+        <div className="flex items-center gap-2 text-sm font-semibold text-ink-900">
+          <Palette size={16} /> Paleta de cores
+        </div>
+        <p className="mt-1 text-xs text-ink-500">Muda a cor principal usada em botões, links e destaques em todo o site.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {(Object.keys(PALETAS) as PaletaKey[]).map((chave) => (
+            <button
+              key={chave}
+              type="button"
+              onClick={() => setSettings({ ...settings, paletaCor: chave })}
+              className={cn(
+                "flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors",
+                settings.paletaCor === chave ? "border-ink-900 bg-ink-50" : "border-ink-200 hover:bg-ink-50"
+              )}
+            >
+              <span className="flex h-5 w-5 rounded-full border border-black/10" style={{ backgroundColor: PALETAS[chave][600] }} />
+              {PALETA_LABELS[chave]}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-ink-200 bg-white p-5">
+        <div className="flex items-center gap-2 text-sm font-semibold text-ink-900">
+          <LayoutGrid size={16} /> Módulos da página inicial
+        </div>
+        <p className="mt-1 text-xs text-ink-500">Desligue aqui pra esconder a seção inteira da home pública.</p>
+        <div className="mt-3 flex flex-col gap-2">
+          {MODULOS_HOME.map((mod) => (
+            <label key={String(mod.key)} className="flex items-center justify-between text-sm text-ink-700">
+              {mod.label}
+              <input
+                type="checkbox"
+                checked={Boolean(settings[mod.key])}
+                onChange={(e) => setSettings({ ...settings, [mod.key]: e.target.checked })}
+                className="h-4 w-4 accent-brand-600"
+              />
+            </label>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-ink-200 bg-white p-5">
+        <div className="flex items-center gap-2 text-sm font-semibold text-ink-900">
+          <PenLine size={16} /> Rodapé
+        </div>
+        <p className="mt-1 text-xs text-ink-500">
+          Aparece no final de todas as páginas, depois de &ldquo;© {new Date().getFullYear()} {settings.nomePlataforma}.&rdquo;
+        </p>
+        <Textarea
+          className="mt-2"
+          rows={2}
+          value={settings.rodapeTexto}
+          onChange={(e) => setSettings({ ...settings, rodapeTexto: e.target.value })}
+        />
       </section>
 
       <section className="mt-6 rounded-2xl border border-ink-200 bg-white p-5">
@@ -141,7 +250,7 @@ export default function AdminConfiguracoesPage() {
 
       {erro && <p className="mt-4 text-sm text-red-600">{erro}</p>}
 
-      <div className="mt-6 flex items-center gap-3">
+      <div className="sticky bottom-4 mt-6 flex items-center gap-3 rounded-2xl border border-ink-200 bg-white/95 p-3 backdrop-blur">
         <Button onClick={salvar} disabled={salvando}>
           {salvando ? "Salvando..." : "Salvar configurações"}
         </Button>

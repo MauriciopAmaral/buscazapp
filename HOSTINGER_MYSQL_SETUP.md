@@ -478,6 +478,19 @@ Essa tela era 100% decorativa — os campos e checkboxes existiam, mas o botão 
 
 Depois do `db push`, não precisa de nenhuma variável de ambiente nova.
 
+## Atualização: Admin → Configurações — logo, nome, paleta de cores, módulos da home e rodapé
+
+Ainda em Admin → Configurações, entraram os itens de identidade visual que faltavam:
+
+- **Precisa rodar `npx prisma db push` de novo** — a tabela `PlatformSettings` ganhou campos novos (`logoUrl`, `paletaCor`, `mostrarCategoriasPopulares`, `mostrarEmpresasPertoDeVoce`, `mostrarOfertas`, `mostrarCupons`, `mostrarEmpresasDestaque`, `rodapeTexto`). Como todos têm valor padrão, o registro que já existe é atualizado automaticamente, sem perder o que já estava salvo.
+- **Logo do site**: um botão de upload novo (mesmo mecanismo por FTP que já existe pra fotos de empresa — usa as variáveis `FTP_*`/`UPLOADS_PUBLIC_URL` do `.env`, então só funciona em produção depois que essas credenciais estiverem configuradas). A logo enviada aparece no cabeçalho e no rodapé do site público no lugar do "B" genérico. Dá pra remover e voltar pro ícone com a inicial do nome.
+- **Nome da plataforma**: já existia o campo, mas agora ele realmente aparece no cabeçalho, no rodapé e no título das páginas — antes ficava só salvo, sem efeito visual nenhum.
+- **Paleta de cores**: 5 opções prontas (Verde, Azul, Roxo, Laranja, Rosa) que trocam a cor principal (botões, links, destaques) do site inteiro assim que salva — sem precisar mexer em nenhum código, porque as cores já eram lidas de variáveis CSS.
+- **Módulos da página inicial**: um interruptor pra cada seção da home — Categorias populares, Empresas perto de você, Ofertas perto de você, Cupons para você economizar e Empresas em destaque. Desligado, a seção some da home pública (e a busca dos dados dela nem é feita, pra não gastar consulta à toa).
+- **Texto do rodapé**: campo de texto livre que aparece em todas as páginas públicas, sempre depois de "© {ano atual} {nome da plataforma}." — o ano e o nome são sempre calculados na hora, então nunca ficam desatualizados mesmo que você não mexa mais nessa tela.
+
+Depois do `db push`, funciona sem nenhuma variável de ambiente nova — exceto a logo, que só fica visível de verdade depois de configurar o FTP da Hostinger (o mesmo passo pendente pra fotos de empresa).
+
 ## O que ainda falta (próxima etapa)
 
 Com essa atualização, **todas as telas do menu Admin listadas no painel estão funcionando com dados reais** (Empresas, Empresas não reivindicadas, Usuários, Categorias, Bairros/dados de referência, Promoções, Cupons, Planos, Assinaturas, Financeiro, Anúncios, Prospecção, Relatórios e Configurações). O que ainda fica de fora dessa etapa, pra quando quiser continuar:
