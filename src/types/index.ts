@@ -295,6 +295,7 @@ export interface Ad {
     | "promocao_destacada";
   companyId: string;
   companyNome: string;
+  companySlug?: string;
   cidade: string;
   inicio: string;
   termino: string;

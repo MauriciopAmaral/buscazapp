@@ -427,9 +427,24 @@ Os cards de topo (Receita recebida, MRR, Pendentes) e a tabela de "Últimos paga
 
 Não exige `db push` nem variável de ambiente nova.
 
+## Atualização: Admin → Anúncios, mesma ideia de Cupons/Promoções
+
+Mesmo tratamento aplicado nas outras telas, agora em **Admin → Anúncios**:
+
+- Lista os anúncios/campanhas patrocinadas reais, com empresa, cidade, tipo, período, impressões e cliques.
+- **Busca** por empresa, cidade ou tipo de anúncio.
+- **Filtro rápido por status** (Todos / Ativos / Pausados / Encerrados).
+- **Pausar/Ativar** direto na lista (o botão some quando o anúncio já está "encerrado", já que esse status é final).
+- **Excluir**, com confirmação antes.
+
+Detalhe técnico: a tabela `Ad` no banco não tem uma coluna própria de cidade — a cidade mostrada é puxada da empresa dona do anúncio (`company.cidadeNome`), então não precisou mudar o schema.
+
+Não exige `db push` nem variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
-1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).
-2. **Validação de verdade na reivindicação de perfil e no "esqueci minha senha"** (enviar código/link por e-mail/SMS real, em vez de mostrar na tela) — precisa de um serviço de envio (ex: Resend pra e-mail, alguma API de SMS) configurado com chave de API.
+1. **Relatórios e Prospecção (quadro Kanban)** — a prospecção já tem o botão "Iniciar prospecção" salvando de verdade na tabela `Prospect`, mas a tela do quadro Kanban em si ainda não lê esses dados reais. Relatórios ainda não tem endpoint próprio.
+2. **Configurações do admin** ainda não foram conectadas ao banco.
+3. **Validação de verdade na reivindicação de perfil e no "esqueci minha senha"** (enviar código/link por e-mail/SMS real, em vez de mostrar na tela) — precisa de um serviço de envio (ex: Resend pra e-mail, alguma API de SMS) configurado com chave de API.
 
 Me diz por qual desses quer que eu continue — ou me passa as credenciais de FTP do item acima que eu já deixo o upload de fotos funcionando em produção.
