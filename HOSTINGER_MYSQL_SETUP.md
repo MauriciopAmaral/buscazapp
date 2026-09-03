@@ -491,9 +491,33 @@ Ainda em Admin → Configurações, entraram os itens de identidade visual que f
 
 Depois do `db push`, funciona sem nenhuma variável de ambiente nova — exceto a logo, que só fica visível de verdade depois de configurar o FTP da Hostinger (o mesmo passo pendente pra fotos de empresa).
 
+## Atenção: sempre rodar `npx prisma db push` ANTES de subir uma atualização que mexe no schema
+
+Depois da atualização de Configurações, o deploy na Vercel quebrou com esse erro:
+
+```
+Error [PrismaClientKnownRequestError]: Invalid `prisma.platformSettings.upsert()` invocation:
+The column `...PlatformSettings.logoUrl` does not exist in the current database.
+```
+
+O motivo: o código novo (que já espera as colunas `logoUrl`, `paletaCor` etc.) foi enviado pro GitHub, mas o `npx prisma db push` contra o banco de produção da Hostinger não tinha sido rodado ainda — então o banco real ainda estava com a estrutura antiga. Como o layout principal do site consulta essas configurações pra montar a página (nome, logo, paleta de cor), **isso derruba o build inteiro**, não só a tela de Configurações.
+
+A partir de agora, sempre que uma atualização destas mensagens disser "precisa rodar `db push`", **rode o `db push` antes de dar `git push`** (ou pelo menos antes do deploy terminar) — nessa ordem, pra nunca mais cair nesse erro. Se isso acontecer de novo, o conserto é sempre o mesmo: rodar `npx prisma db push` e depois clicar em "Redeploy" no último deploy que falhou na Vercel (não precisa de commit novo).
+
+## Atualização: Admin → Dashboard (página inicial) com dados reais
+
+A própria home do painel admin (`/admin`) ainda estava 100% no mockup antigo — nem os cards nem os gráficos vinham do banco. Agora:
+
+- Os 8 cards (Total de empresas, Reivindicadas, Empresas Premium, Usuários, Assinaturas ativas, MRR, Leads, Cupons utilizados) vêm de contagens/somas reais.
+- O gráfico "Visualizações totais — últimos 30 dias" soma os registros diários reais de `AnalyticsDaily` de todas as empresas.
+- O gráfico "Assinantes por plano" conta as empresas de verdade por plano, com o nome do plano.
+- Se ainda não tiver histórico de visualizações ou nenhum assinante, mostra uma mensagem no lugar do gráfico vazio.
+
+Não exige `db push` nem variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
-Com essa atualização, **todas as telas do menu Admin listadas no painel estão funcionando com dados reais** (Empresas, Empresas não reivindicadas, Usuários, Categorias, Bairros/dados de referência, Promoções, Cupons, Planos, Assinaturas, Financeiro, Anúncios, Prospecção, Relatórios e Configurações). O que ainda fica de fora dessa etapa, pra quando quiser continuar:
+Com essa atualização, **todas as telas do menu Admin listadas no painel — incluindo a própria página inicial (Dashboard) — estão funcionando com dados reais** (Empresas, Empresas não reivindicadas, Usuários, Categorias, Bairros/dados de referência, Promoções, Cupons, Planos, Assinaturas, Financeiro, Anúncios, Prospecção, Relatórios e Configurações). O que ainda fica de fora dessa etapa, pra quando quiser continuar:
 
 1. **Exportar relatórios** (CSV/PDF) — hoje o botão "Exportar" existe na tela de Relatórios mas fica desativado.
 2. **Disparo automático das notificações internas** (e-mail/WhatsApp real pra equipe quando entra uma reivindicação nova ou um pagamento fica pendente) — hoje só existe o toggle de preferência salvo; o envio em si ainda não está automatizado.
