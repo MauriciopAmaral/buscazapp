@@ -225,6 +225,7 @@ model Company {
   claims       Claim[]
   prospect     Prospect?
   ads          Ad[]
+  boosts       Boost[]
   favoritedBy  Favorite[]
   cashbackTransactions CashbackTransaction[]
 
@@ -483,6 +484,37 @@ model Ad {
   cliques     Int      @default(0)
   impressoes  Int      @default(0)
   createdAt   DateTime @default(now())
+  boost       Boost?
+
+  @@index([companyId])
+}
+
+enum BoostStatus {
+  pendente
+  pago
+  cancelado
+  expirado
+}
+
+// Uma compra de impulsionamento (Painel → Impulsionar) via Mercado Pago.
+// Criada como "pendente" assim que a empresa escolhe o tipo/duração e é
+// redirecionada pro checkout; o webhook do Mercado Pago (POST
+// /api/webhooks/mercadopago) confirma o pagamento, marca "pago" e cria o
+// Ad correspondente automaticamente, sem nenhuma ação manual.
+model Boost {
+  id                String      @id @default(cuid())
+  companyId         String
+  company           Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tipo              AdType
+  dias              Int
+  valor             Decimal     @db.Decimal(10, 2)
+  status            BoostStatus @default(pendente)
+  mpPreferenceId    String?
+  mpPaymentId       String?     @unique
+  adId              String?     @unique
+  ad                Ad?         @relation(fields: [adId], references: [id])
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
   @@index([companyId])
 }
