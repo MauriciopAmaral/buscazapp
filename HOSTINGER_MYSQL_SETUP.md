@@ -525,6 +525,15 @@ Achei um bug real: depois de logar, a tela de login sempre mandava todo mundo pr
 
 Não exige `db push` nem variável de ambiente nova.
 
+## Atualização: menu do celular no painel/admin ganhou "Ver site" e "Sair"
+
+Faltava um detalhe no menu hambúrguer do painel da empresa e do admin, quando aberto pelo celular:
+
+- **"Ver site público"**: já existia no menu de computador (rodapé da barra lateral), mas não aparecia no menu do celular. Agora aparece nos dois, e no celular abre em uma aba/janela nova (sem sair do painel, então não perde o que estava fazendo lá).
+- **"Sair"**: nem o painel nem o admin tinham um jeito de fazer logout de dentro deles — o único jeito era voltar pro site público e sair por lá. Agora tem um botão "Sair" no rodapé do menu, tanto no computador quanto no celular, que desloga e já manda de volta pra tela de login.
+
+Não exige `db push` nem variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
 Com essa atualização, **todas as telas do menu Admin listadas no painel — incluindo a própria página inicial (Dashboard) — estão funcionando com dados reais** (Empresas, Empresas não reivindicadas, Usuários, Categorias, Bairros/dados de referência, Promoções, Cupons, Planos, Assinaturas, Financeiro, Anúncios, Prospecção, Relatórios e Configurações). O que ainda fica de fora dessa etapa, pra quando quiser continuar:

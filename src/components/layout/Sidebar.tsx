@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, ReactNode } from "react";
-import { Menu, X, ArrowLeftRight } from "lucide-react";
+import { Menu, X, ArrowLeftRight, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 export interface SidebarItem {
   href: string;
@@ -23,6 +24,7 @@ interface SidebarProps {
 
 export function Sidebar({ items, title, badge, switchHref, switchLabel, children }: SidebarProps) {
   const pathname = usePathname();
+  const { logout } = useAuth();
   const [open, setOpen] = useState(false);
 
   const NavList = (
@@ -61,8 +63,8 @@ export function Sidebar({ items, title, badge, switchHref, switchLabel, children
           </div>
         </div>
         {NavList}
-        {switchHref && (
-          <div className="border-t border-ink-100 p-3">
+        <div className="flex flex-col gap-1 border-t border-ink-100 p-3">
+          {switchHref && (
             <Link
               href={switchHref}
               className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-500 hover:bg-ink-100"
@@ -70,8 +72,16 @@ export function Sidebar({ items, title, badge, switchHref, switchLabel, children
               <ArrowLeftRight size={16} />
               {switchLabel}
             </Link>
-          </div>
-        )}
+          )}
+          <button
+            type="button"
+            onClick={logout}
+            className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-ink-500 hover:bg-ink-100"
+          >
+            <LogOut size={16} />
+            Sair
+          </button>
+        </div>
       </aside>
 
       {/* Mobile drawer */}
@@ -91,6 +101,31 @@ export function Sidebar({ items, title, badge, switchHref, switchLabel, children
               </button>
             </div>
             {NavList}
+            <div className="flex flex-col gap-1 border-t border-ink-100 p-3">
+              {switchHref && (
+                <Link
+                  href={switchHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-ink-500 hover:bg-ink-100"
+                >
+                  <ArrowLeftRight size={16} />
+                  {switchLabel}
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  logout();
+                }}
+                className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-ink-500 hover:bg-ink-100"
+              >
+                <LogOut size={16} />
+                Sair
+              </button>
+            </div>
           </aside>
         </div>
       )}
