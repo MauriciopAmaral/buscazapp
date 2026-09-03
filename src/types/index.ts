@@ -197,6 +197,10 @@ export interface CashbackTransaction {
 export interface Subscription {
   id: string;
   companyId: string;
+  /** Presentes quando a assinatura vem da API/banco — evita ter que procurar nos mocks. */
+  companyNome?: string;
+  companySlug?: string;
+  planoNome?: string;
   planoId: PlanoId;
   periodicidade: "mensal" | "trimestral" | "anual";
   status: "ativa" | "cancelada" | "atrasada";

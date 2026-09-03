@@ -401,6 +401,19 @@ Essa tela já tinha o formulário de editar preços, mas era só aparência — 
 
 Não exige `db push` nem variável de ambiente nova.
 
+## Atualização: Admin → Assinaturas, mesma ideia de Cupons/Promoções
+
+Mesmo tratamento nas telas de Cupons e Promoções, agora em **Admin → Assinaturas**:
+
+- Lista as assinaturas reais, com nome da empresa e do plano.
+- **Busca** por empresa ou plano.
+- **Filtro rápido por status** (Todas / Ativas / Atrasadas / Canceladas).
+- **Cancelar/Reativar** e **Excluir**, direto na lista, com confirmação antes de excluir.
+
+Detalhe técnico: o nome do plano é buscado à parte porque `Subscription.planoId` não tem uma relação formal com a tabela `Plan` no banco (funciona pelo mesmo valor do enum, mas sem um vínculo declarado) — resolvido buscando os 4 planos junto e casando pelo id na resposta da API.
+
+Não exige `db push` nem variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
 1. **Terminar o resto do admin** — as telas de planos, cupons/promoções em massa, financeiro, relatórios, prospecção e anúncios ainda precisam de endpoints próprios, seguindo o padrão de `/api/admin/claims` e `/api/admin/companies` (Usuários, Categorias e os dados de referência já foram feitos).
