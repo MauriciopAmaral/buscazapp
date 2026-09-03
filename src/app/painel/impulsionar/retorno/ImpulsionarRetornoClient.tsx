@@ -7,7 +7,7 @@ import { CheckCircle2, Clock, XCircle, Loader2 } from "lucide-react";
 import { Button, LinkButton } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { BOOST_CATALOGO, BoostTipo } from "@/lib/boostCatalog";
+import { BOOST_CATALOGO, BoostTipo, formatDias } from "@/lib/boostCatalog";
 
 interface BoostRow {
   id: string;
@@ -120,7 +120,7 @@ export function ImpulsionarRetornoClient() {
         </span>
         <h1 className="mt-5 text-xl font-bold text-ink-900">Pagamento aprovado!</h1>
         <p className="mt-2 text-sm text-ink-500">
-          <strong>{catalogo?.nome}</strong> por {boost.dias} dias, {formatCurrency(Number(boost.valor))} — já está
+          <strong>{catalogo?.nome}</strong> por {formatDias(boost.dias)}, {formatCurrency(Number(boost.valor))} — já está
           ativo{boost.ad && <> até {formatDate(boost.ad.termino)}</>}.
         </p>
         <LinkButton href="/painel/impulsionar" className="mt-6">

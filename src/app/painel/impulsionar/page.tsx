@@ -6,7 +6,7 @@ import { Badge, LoadingState } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
 import { useCurrentCompanyLive } from "@/lib/useCurrentCompany";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
-import { BOOST_CATALOGO, BOOST_DURACOES, BoostTipo, calcularValorBoost } from "@/lib/boostCatalog";
+import { BOOST_CATALOGO, BOOST_DURACOES, BoostTipo, calcularValorBoost, formatDias } from "@/lib/boostCatalog";
 
 const icones: Record<BoostTipo, React.ReactNode> = {
   destaque_home: <Home size={18} />,
@@ -153,7 +153,7 @@ export default function ImpulsionarPage() {
                 dias === d ? "bg-white text-ink-900 shadow-sm" : "text-ink-500"
               )}
             >
-              {d} dias
+              {formatDias(d)}
             </button>
           ))}
         </div>
@@ -205,7 +205,7 @@ export default function ImpulsionarPage() {
                     </span>
                     <div>
                       <p className="text-sm font-medium text-ink-900">
-                        {BOOST_CATALOGO[b.tipo]?.nome ?? b.tipo} — {b.dias} dias
+                        {BOOST_CATALOGO[b.tipo]?.nome ?? b.tipo} — {formatDias(b.dias)}
                       </p>
                       <p className="text-xs text-ink-500">
                         {formatCurrency(Number(b.valor))} · comprado em {formatDate(b.createdAt)}

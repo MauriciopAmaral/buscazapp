@@ -14,7 +14,7 @@ export const BOOST_TIPOS = [
 
 export type BoostTipo = (typeof BOOST_TIPOS)[number];
 
-export const BOOST_DURACOES = [7, 15, 30] as const;
+export const BOOST_DURACOES = [1, 7, 15, 30] as const;
 
 export const BOOST_CATALOGO: Record<BoostTipo, { nome: string; descricao: string; precoDia: number }> = {
   destaque_home: {
@@ -54,4 +54,9 @@ export function isBoostDuracao(valor: number): valor is (typeof BOOST_DURACOES)[
 
 export function calcularValorBoost(tipo: BoostTipo, dias: number): number {
   return Math.round(BOOST_CATALOGO[tipo].precoDia * dias * 100) / 100;
+}
+
+/** "1 dia" / "7 dias" — só pra não ficar "1 dias" na tela. */
+export function formatDias(dias: number): string {
+  return dias === 1 ? "1 dia" : `${dias} dias`;
 }
