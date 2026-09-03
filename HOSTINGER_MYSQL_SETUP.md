@@ -452,9 +452,23 @@ O quadro de prospecção (Admin → Prospecção) agora lê e grava direto na ta
 
 Não exige `db push` nem variável de ambiente nova (a tabela `Prospect` já existia no schema).
 
+## Atualização: Admin → Relatórios com dados reais do banco
+
+A tela de Relatórios trocou os números fixos do mockup por indicadores calculados na hora, direto no banco:
+
+- Cards no topo: total de empresas, assinaturas ativas, receita recebida (soma dos pagamentos com status "pago"), total de leads gerados, categorias, cidades com cobertura e taxa de conversão (leads ÷ visualizações registradas em `CompanyAnalytics`).
+- Gráfico "Empresas por cidade": conta as empresas de verdade agrupadas por cidade (top 10).
+- Gráfico "Top categorias": conta as empresas por categoria (top 8).
+- Gráfico "Leads por origem": agrupa os leads reais por origem (WhatsApp, telefone, cupom, site).
+- Se ainda não existir nenhum dado pra um gráfico (ex: base nova, sem leads), mostra "Sem dados ainda" no lugar do gráfico vazio, em vez de quebrar.
+
+O botão "Exportar" continua desativado — segue como próximo passo, se quiser (exportar em CSV/PDF).
+
+Não exige `db push` nem variável de ambiente nova.
+
 ## O que ainda falta (próxima etapa)
 
-1. **Relatórios** ainda não tem endpoint próprio conectado ao banco.
+1. **Exportar relatórios** (CSV/PDF) — hoje o botão "Exportar" existe na tela mas fica desativado.
 2. **Configurações do admin** ainda não foram conectadas ao banco.
 3. **Validação de verdade na reivindicação de perfil e no "esqueci minha senha"** (enviar código/link por e-mail/SMS real, em vez de mostrar na tela) — precisa de um serviço de envio (ex: Resend pra e-mail, alguma API de SMS) configurado com chave de API.
 
