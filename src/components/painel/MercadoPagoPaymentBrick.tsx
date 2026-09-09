@@ -81,13 +81,13 @@ export function MercadoPagoPaymentBrick({ publicKey, amount, onSubmit, onError }
           initialization: { amount },
           customization: {
             paymentMethods: {
-              // Só cartão de crédito e Pix — sem boleto, débito ou saldo
-              // em conta do Mercado Pago, conforme pedido.
+              // Só cartão de crédito e Pix — sem boleto, débito ou saldo em
+              // conta do Mercado Pago. O Brick não aceita "none" pra
+              // desligar um meio de pagamento: é preciso OMITIR a chave por
+              // completo (colocar "none" faz o Brick recusar a
+              // configuração inteira e mostrar "Ocorreu um erro").
               creditCard: "all",
-              debitCard: "none",
               bankTransfer: "all",
-              ticket: "none",
-              mercadoPago: "none",
             },
           },
           callbacks: {
