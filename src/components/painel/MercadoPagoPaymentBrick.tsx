@@ -58,6 +58,7 @@ interface Props {
 /** Formulário de pagamento (cartão de crédito ou Pix) do Mercado Pago, embutido na página. */
 export function MercadoPagoPaymentBrick({ publicKey, amount, onSubmit, onError }: Props) {
   const [containerId] = useState(() => `mp-brick-${Math.random().toString(36).slice(2)}`);
+  const [carregando, setCarregando] = useState(true);
   const brickRef = useRef<{ unmount: () => void } | null>(null);
   const onSubmitRef = useRef(onSubmit);
   const onErrorRef = useRef(onError);
@@ -90,12 +91,21 @@ export function MercadoPagoPaymentBrick({ publicKey, amount, onSubmit, onError }
             },
           },
           callbacks: {
+            // onReady e onError são obrigatórios pro Brick — sem os dois
+            // ele recusa a inicialização com "Callbacks onReady and/or
+            // onError are required".
+            onReady: () => {
+              if (!cancelado) setCarregando(false);
+            },
             onSubmit: ({ formData }: { formData: Record<string, unknown> }) => {
               return onSubmitRef.current(formData);
             },
             onError: (error: unknown) => {
               console.error("[MercadoPagoPaymentBrick]", error);
-              onErrorRef.current?.("Não foi possível carregar o formulário de pagamento.");
+              if (!cancelado) {
+                setCarregando(false);
+                onErrorRef.current?.("Não foi possível carregar o formulário de pagamento.");
+              }
             },
           },
         });
@@ -108,7 +118,10 @@ export function MercadoPagoPaymentBrick({ publicKey, amount, onSubmit, onError }
         if (brick) brickRef.current = brick;
       })
       .catch((err) => {
-        if (!cancelado) onErrorRef.current?.(err?.message ?? "Não foi possível carregar o Mercado Pago.");
+        if (!cancelado) {
+          setCarregando(false);
+          onErrorRef.current?.(err?.message ?? "Não foi possível carregar o Mercado Pago.");
+        }
       });
 
     return () => {
@@ -118,5 +131,10 @@ export function MercadoPagoPaymentBrick({ publicKey, amount, onSubmit, onError }
     };
   }, [publicKey, amount, containerId]);
 
-  return <div id={containerId} />;
+  return (
+    <div>
+      {carregando && <p className="mb-3 text-xs text-ink-400">Carregando formulário de pagamento...</p>}
+      <div id={containerId} />
+    </div>
+  );
 }
