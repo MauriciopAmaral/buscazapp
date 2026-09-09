@@ -1,19 +1,24 @@
 // ============================================================
-// BuscaZapp — integração com o Mercado Pago (Checkout Pro)
+// BuscaZapp — integração com o Mercado Pago (Checkout transparente/Bricks)
 //
 // Usado hoje só pelo Impulsionar (Painel → Impulsionar): a empresa
-// escolhe o formato/duração, a gente cria uma "preferência" de pagamento
-// no Mercado Pago e redireciona pra lá (cartão, Pix, boleto — quem decide
-// é o próprio Mercado Pago, não a gente). Depois do pagamento, o Mercado
-// Pago chama nosso webhook (POST /api/webhooks/mercadopago) pra confirmar,
-// e é só nesse momento que o impulsionamento é liberado — nunca antes,
-// pra não liberar nada sem o pagamento estar realmente aprovado.
+// escolhe o formato/duração e paga sem sair do site — o formulário de
+// pagamento (Pix ou cartão de crédito) é renderizado ali mesmo na página
+// pelo "Payment Brick" do Mercado Pago (script carregado no navegador).
+// Quando a empresa confirma, o navegador manda os dados tokenizados pro
+// nosso backend (POST /api/painel/boosts/[id]/pagar), que cria o
+// pagamento de verdade direto na API do Mercado Pago com o Access Token.
+// Depois, o Mercado Pago também chama nosso webhook
+// (POST /api/webhooks/mercadopago) pra confirmar — é o que garante a
+// liberação de um Pix mesmo se a pessoa fechar a aba antes da confirmação
+// aparecer na tela.
 //
-// Requer a variável de ambiente MP_ACCESS_TOKEN (ver .env.example e
-// HOSTINGER_MYSQL_SETUP.md).
+// Requer as variáveis de ambiente MP_ACCESS_TOKEN (backend) e
+// NEXT_PUBLIC_MP_PUBLIC_KEY (frontend, pra carregar o Payment Brick) —
+// ver .env.example e HOSTINGER_MYSQL_SETUP.md.
 // ============================================================
 
-import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
+import { MercadoPagoConfig, Payment } from "mercadopago";
 
 function accessToken(): string | undefined {
   const v = process.env.MP_ACCESS_TOKEN;
@@ -35,15 +40,11 @@ function getConfig(): MercadoPagoConfig {
   return config;
 }
 
-export function mpPreferenceClient(): Preference {
-  return new Preference(getConfig());
-}
-
 export function mpPaymentClient(): Payment {
   return new Payment(getConfig());
 }
 
-/** URL base do site, pra montar as URLs de retorno/webhook mandadas pro Mercado Pago. */
+/** URL base do site, pra montar a URL do webhook mandada pro Mercado Pago. */
 export function siteBaseUrl(): string {
   const v = process.env.SITE_BASE_URL;
   return (v && v.trim() !== "" ? v.trim() : "https://www.buscazap.com").replace(/\/+$/, "");

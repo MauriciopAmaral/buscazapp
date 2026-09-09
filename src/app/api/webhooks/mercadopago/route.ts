@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { mpConfigured, mpPaymentClient } from "@/lib/mercadopago";
+import { aplicarStatusPagamento } from "@/lib/boostPayment";
 
 // POST /api/webhooks/mercadopago — o Mercado Pago chama essa rota sozinho
 // (sem token de usuário nenhum) toda vez que o status de um pagamento
-// muda. É aqui que o impulsionamento é liberado de verdade.
+// muda. É o que confirma o Pix depois que a pessoa paga (o pagamento por
+// cartão já costuma ser confirmado na hora, direto na resposta de
+// POST /api/painel/boosts/[id]/pagar — esse webhook é o backup que
+// garante a liberação mesmo se a pessoa fechar a aba antes da confirmação
+// chegar, e é a única forma de saber quando um Pix pendente é pago).
 //
 // Segurança: em vez de confiar em qualquer coisa que vier no corpo da
 // notificação (que poderia ser forjado por qualquer um, já que essa rota
@@ -50,49 +54,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Idempotente: o Mercado Pago pode reenviar a mesma notificação várias
-    // vezes — se já processamos esse pagamento como pago, não faz nada de novo.
-    if (boost.status === "pago") {
-      return NextResponse.json({ ok: true });
-    }
-
-    if (payment.status === "approved") {
-      const agora = new Date();
-      const termino = new Date(agora.getTime() + boost.dias * 24 * 60 * 60 * 1000);
-
-      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        const ad = await tx.ad.create({
-          data: {
-            companyId: boost.companyId,
-            tipo: boost.tipo,
-            inicio: agora,
-            termino,
-            status: "ativo",
-          },
-        });
-        await tx.boost.update({
-          where: { id: boost.id },
-          data: {
-            status: "pago",
-            mpPaymentId: String(payment.id),
-            adId: ad.id,
-          },
-        });
-      });
-    } else if (payment.status === "rejected" || payment.status === "cancelled") {
-      await prisma.boost.update({
-        where: { id: boost.id },
-        data: { status: "cancelado", mpPaymentId: String(payment.id) },
-      });
-    } else {
-      // pending / in_process / etc — ainda não é definitivo (ex: boleto ou
-      // Pix aguardando confirmação). Só guarda o ID do pagamento pra a
-      // próxima notificação (quando vier) achar o mesmo Boost mais rápido.
-      await prisma.boost.update({
-        where: { id: boost.id },
-        data: { mpPaymentId: String(payment.id) },
-      });
-    }
+    // aplicarStatusPagamento já é idempotente (não faz nada se o Boost já
+    // estiver "pago") — o Mercado Pago pode reenviar a mesma notificação
+    // várias vezes.
+    await aplicarStatusPagamento(boost, payment);
 
     return NextResponse.json({ ok: true });
   } catch (err) {
