@@ -85,7 +85,11 @@ export async function getCompanies(take?: number): Promise<Company[]> {
     where: { status: "ativo" },
     orderBy: [{ patrocinada: "desc" }, { verificado: "desc" }, { createdAt: "desc" }],
     include: companyListInclude,
-    ...(take ? { take: take + boostIds.size } : {}),
+    // Se tem algum impulsionamento ativo, busca todo mundo (sem cortar em
+    // `take`) — senão uma empresa impulsionada que estivesse mal rankeada
+    // na ordem normal (pouco avaliada, cadastro antigo) nunca apareceria,
+    // já que o corte aconteceria ANTES dela ser colocada na frente.
+    ...(take && boostIds.size === 0 ? { take } : {}),
   });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tipos reais do Prisma só existem depois de `prisma generate`, que este sandbox não consegue rodar (ver AGENTS.md / HOSTINGER_MYSQL_SETUP.md); na Vercel o build gera o client normalmente.
   const empresas: Company[] = (rows as any[]).map((c) => ({
@@ -255,7 +259,11 @@ export async function getActivePromotions(take?: number): Promise<Promotion[]> {
     where: { status: "ativa" },
     orderBy: { createdAt: "desc" },
     include: { company: { select: { nomeFantasia: true, slug: true } } },
-    ...(take ? { take: take + impulsionadas.size } : {}),
+    // Mesma lógica de getCompanies(): com impulsionamento ativo, busca
+    // tudo (sem `take`) — senão uma promoção impulsionada mal rankeada
+    // na ordem normal (mais antiga) nunca seria alcançada, já que o
+    // corte aconteceria antes dela ser colocada na frente.
+    ...(take && impulsionadas.size === 0 ? { take } : {}),
   });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const promocoes = rows.map((p: any) => ({
