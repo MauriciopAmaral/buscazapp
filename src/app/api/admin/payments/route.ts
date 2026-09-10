@@ -17,6 +17,13 @@ function statusBoostParaPayment(status: string): "pago" | "pendente" | "falhou" 
   return "falhou";
 }
 
+const NOMES_PLANO: Record<string, string> = {
+  gratuito: "Gratuito",
+  pro: "Pro",
+  premium: "Premium",
+  premium_plus: "Premium+",
+};
+
 // GET /api/admin/payments — todos os pagamentos, com nome da empresa
 // junto, mais os totais (receita recebida, MRR, pendente) já calculados
 // pro admin não precisar somar isso no navegador.
@@ -25,7 +32,7 @@ export async function GET(request: NextRequest) {
     const auth = getAuthUserWithRole(request, ["admin"]);
     if (!auth) return unauthorized("Faça login como administrador.");
 
-    const [pagamentos, boosts, assinaturasAtivas] = await Promise.all([
+    const [pagamentos, boosts, planPurchases, assinaturasAtivas] = await Promise.all([
       prisma.payment.findMany({
         orderBy: { data: "desc" },
         include: { company: { select: { nomeFantasia: true, slug: true, whatsapp: true } } },
@@ -34,6 +41,7 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: "desc" },
         include: { company: { select: { nomeFantasia: true, slug: true, whatsapp: true } } },
       }),
+      prisma.planPurchase.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.subscription.aggregate({ where: { status: "ativa" }, _sum: { valor: true } }),
     ]);
 
@@ -63,7 +71,23 @@ export async function GET(request: NextRequest) {
       status: statusBoostParaPayment(b.status),
     }));
 
-    const lista = [...listaPagamentos, ...listaBoosts].sort(
+    // Compras de plano (página pública "Para empresas" → Planos) — feitas
+    // ANTES de existir conta/empresa, então pode não ter `companyId` ainda
+    // (mostra o nome/telefone de contato preenchidos na hora da compra).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tipos reais do Prisma só existem depois de `prisma generate`, ver AGENTS.md
+    const listaPlanos = planPurchases.map((pp: any) => ({
+      id: `plano-${pp.id}`,
+      companyId: pp.companyId,
+      companyNome: pp.nome,
+      companySlug: null as string | null,
+      companyWhatsapp: pp.telefone ?? null,
+      descricao: `Assinatura — ${NOMES_PLANO[pp.planoId] ?? pp.planoId} (${pp.periodicidade})${pp.companyId ? "" : " — cadastro pendente"}`,
+      data: pp.createdAt instanceof Date ? pp.createdAt.toISOString() : String(pp.createdAt),
+      valor: Number(pp.valor),
+      status: statusBoostParaPayment(pp.status),
+    }));
+
+    const lista = [...listaPagamentos, ...listaBoosts, ...listaPlanos].sort(
       (a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()
     );
 

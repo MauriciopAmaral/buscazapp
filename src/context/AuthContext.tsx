@@ -12,7 +12,12 @@ interface AuthContextValue {
     nome: string,
     email: string,
     senha: string,
-    role: "consumidor" | "empresa"
+    role: "consumidor" | "empresa",
+    /** Vindo de um link de e-mail depois da compra de um plano pago
+     * (/planos/comprar) — vincula essa conta nova à compra, pra aplicar o
+     * plano quando a empresa for criada e mandar o e-mail de boas-vindas
+     * com os dados de acesso. Ver POST /api/auth/register. */
+    planoToken?: string
   ) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
   /** Atalho de desenvolvimento: loga com uma das contas de teste já semeadas no banco. */
   loginAs: (role: UserRole) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
@@ -136,12 +141,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { ok: true, user: result.data.user };
   };
 
-  const register: AuthContextValue["register"] = async (nome, email, senha, role) => {
+  const register: AuthContextValue["register"] = async (nome, email, senha, role, planoToken) => {
     const result = await apiCall<{ token: string; user: User }>("/auth/register", {
       nome,
       email,
       senha,
       role,
+      ...(planoToken ? { planoToken } : {}),
     });
     if (!result.ok) return result;
     persist(result.data.token, result.data.user);

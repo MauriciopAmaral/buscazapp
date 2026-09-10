@@ -519,6 +519,32 @@ model Boost {
   @@index([companyId])
 }
 
+// Compra de um plano (Assinatura) feita direto na página pública "Para
+// empresas" → Planos, ANTES de existir conta ou empresa — por isso não tem
+// `companyId` obrigatório como o Boost tem. Fluxo: alguém preenche
+// nome/e-mail e paga (Pix ou cartão, mesmo Payment Brick do Impulsionar);
+// quando o pagamento é aprovado, um e-mail com um link (usando
+// `cadastroToken`) é mandado pro cliente completar o cadastro
+// (User + Company) — ver src/lib/planPurchasePayment.ts.
+model PlanPurchase {
+  id            String      @id @default(cuid())
+  planoId       PlanoId
+  periodicidade SubscriptionPeriod
+  valor         Decimal     @db.Decimal(10, 2)
+  nome          String
+  email         String
+  telefone      String?
+  status        BoostStatus @default(pendente)
+  mpPaymentId   String?     @unique
+  cadastroToken String      @unique
+  userId        String?
+  companyId     String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([email])
+}
+
 // Linha única de configurações gerais da plataforma (Admin → Configurações).
 // Sempre um único registro, com id fixo "singleton" — lido/gravado por
 // GET/PATCH em /api/admin/settings (e a parte pública em /api/settings).

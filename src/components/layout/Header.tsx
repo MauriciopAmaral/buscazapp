@@ -15,6 +15,7 @@ const navLinks = [
   { href: "/cupons", label: "Cupons" },
   { href: "/clube", label: "Clube" },
   { href: "/para-empresas", label: "Para empresas" },
+  { href: "/para-empresas#planos", label: "Planos" },
 ];
 
 interface HeaderProps {

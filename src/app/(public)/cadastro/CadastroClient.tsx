@@ -11,12 +11,13 @@ export function CadastroClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { register, loginAs } = useAuth();
+  const planoToken = searchParams.get("planoToken") ?? "";
   const [tipo, setTipo] = useState<"consumidor" | "empresa">(
-    searchParams.get("tipo") === "empresa" ? "empresa" : "consumidor"
+    planoToken || searchParams.get("tipo") === "empresa" ? "empresa" : "consumidor"
   );
 
   const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -37,7 +38,7 @@ export function CadastroClient() {
     e.preventDefault();
     setErro(null);
     setCarregando(true);
-    const result = await register(nome, email, senha, tipo);
+    const result = await register(nome, email, senha, tipo, planoToken || undefined);
     setCarregando(false);
     if (!result.ok) {
       setErro(result.error);
@@ -55,6 +56,13 @@ export function CadastroClient() {
       <p className="mt-1 text-center text-sm text-ink-500">
         Escolha o tipo de conta e comece a usar o BuscaZapp.
       </p>
+
+      {planoToken && (
+        <p className="mt-4 w-full rounded-lg bg-emerald-50 px-3 py-2 text-center text-xs text-emerald-700">
+          Pagamento do seu plano confirmado! Complete o cadastro abaixo pra criar sua conta e o perfil da sua
+          empresa — o plano já entra ativo automaticamente.
+        </p>
+      )}
 
       <div className="mt-6 grid w-full grid-cols-2 gap-2 rounded-xl bg-ink-100 p-1">
         <button

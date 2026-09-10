@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mpConfigured, mpPaymentClient } from "@/lib/mercadopago";
 import { aplicarStatusPagamento } from "@/lib/boostPayment";
+import { aplicarStatusPagamentoPlano } from "@/lib/planPurchasePayment";
 
 // POST /api/webhooks/mercadopago — o Mercado Pago chama essa rota sozinho
 // (sem token de usuário nenhum) toda vez que o status de um pagamento
@@ -42,23 +43,32 @@ export async function POST(request: NextRequest) {
     }
 
     const payment = await mpPaymentClient().get({ id: String(paymentId) });
-    const boostId = payment.external_reference;
-    if (!boostId) {
+    const externalReference = payment.external_reference;
+    if (!externalReference) {
       console.error("[webhook mercadopago] pagamento sem external_reference", paymentId);
       return NextResponse.json({ ok: true });
     }
 
-    const boost = await prisma.boost.findUnique({ where: { id: boostId } });
-    if (!boost) {
-      console.error("[webhook mercadopago] boost não encontrado", boostId);
+    // O `external_reference` pode ser de um Impulsionamento (Boost) OU de
+    // uma compra de plano (PlanPurchase, pago na página pública "Para
+    // empresas" → Planos) — os dois usam essa mesma URL de webhook. Tenta
+    // achar em qualquer uma das duas tabelas.
+    const boost = await prisma.boost.findUnique({ where: { id: externalReference } });
+    if (boost) {
+      // aplicarStatusPagamento já é idempotente (não faz nada se o Boost já
+      // estiver "pago") — o Mercado Pago pode reenviar a mesma notificação
+      // várias vezes.
+      await aplicarStatusPagamento(boost, payment);
       return NextResponse.json({ ok: true });
     }
 
-    // aplicarStatusPagamento já é idempotente (não faz nada se o Boost já
-    // estiver "pago") — o Mercado Pago pode reenviar a mesma notificação
-    // várias vezes.
-    await aplicarStatusPagamento(boost, payment);
+    const purchase = await prisma.planPurchase.findUnique({ where: { id: externalReference } });
+    if (purchase) {
+      await aplicarStatusPagamentoPlano(purchase, payment);
+      return NextResponse.json({ ok: true });
+    }
 
+    console.error("[webhook mercadopago] nenhum Boost/PlanPurchase encontrado", externalReference);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[POST /api/webhooks/mercadopago]", err);

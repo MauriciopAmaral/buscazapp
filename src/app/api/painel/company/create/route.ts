@@ -115,6 +115,33 @@ export async function POST(request: NextRequest) {
       data: { companyId: company.id },
     });
 
+    // Se essa conta veio de uma compra de plano paga direto na página
+    // pública "Para empresas" → Planos (vinculada em POST /api/auth/register
+    // via `planoToken`), aplica o plano contratado na empresa que acabou de
+    // ser criada — em vez de nascer no plano Gratuito padrão. Sem isso, o
+    // dinheiro seria cobrado mas o plano nunca chegaria a valer nada.
+    const planPurchase = await prisma.planPurchase.findFirst({
+      where: { userId: user.id, status: "pago", companyId: null },
+    });
+    if (planPurchase) {
+      const dias = planPurchase.periodicidade === "mensal" ? 30 : planPurchase.periodicidade === "trimestral" ? 90 : 365;
+      const proximaCobranca = new Date(Date.now() + dias * 24 * 60 * 60 * 1000);
+      await prisma.$transaction([
+        prisma.subscription.create({
+          data: {
+            companyId: company.id,
+            planoId: planPurchase.planoId,
+            periodicidade: planPurchase.periodicidade,
+            status: "ativa",
+            proximaCobranca,
+            valor: planPurchase.valor,
+          },
+        }),
+        prisma.company.update({ where: { id: company.id }, data: { planoId: planPurchase.planoId } }),
+        prisma.planPurchase.update({ where: { id: planPurchase.id }, data: { companyId: company.id } }),
+      ]);
+    }
+
     const token = signAuthToken({ sub: user.id, role: user.role, companyId: user.companyId });
 
     return created({

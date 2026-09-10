@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   MessageCircle, Search, Rocket, CheckCircle2, Star, TrendingUp, Users, MapPinned,
   Building2, ChevronDown, Quote,
@@ -9,8 +9,15 @@ import { LinkButton, Select, Badge } from "@/components/ui";
 import { companies, cidadesPara } from "@/mocks/companies";
 import { categories } from "@/mocks/categories";
 import { companyAnalytics } from "@/mocks/analytics";
-import { planos } from "@/mocks/subscriptions";
 import { formatCurrency, cn } from "@/lib/utils";
+
+interface PlanoReal {
+  id: string;
+  nome: string;
+  precoMensal: number;
+  destaque: boolean;
+  recursos: string[];
+}
 
 function seeded(seed: number) {
   const x = Math.sin(seed) * 10000;
@@ -85,6 +92,16 @@ export function ParaEmpresasClient() {
   const [cidade, setCidade] = useState(cidadesPara[0]);
   const [categoriaSlug, setCategoriaSlug] = useState(categories[0]?.slug ?? "");
   const [faqAberto, setFaqAberto] = useState<number | null>(0);
+  const [planos, setPlanos] = useState<PlanoReal[]>([]);
+
+  useEffect(() => {
+    fetch("/api/planos")
+      .then((r) => r.json())
+      .then((json) => {
+        if (json?.success) setPlanos(json.data);
+      })
+      .catch(() => undefined);
+  }, []);
 
   const totalEmpresas = companies.length;
   const totalCliques = companyAnalytics.reduce((sum, a) => sum + a.cliquesWhatsapp, 0);
@@ -216,7 +233,7 @@ export function ParaEmpresasClient() {
       </div>
 
       {/* Planos */}
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+      <div id="planos" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-12 sm:px-6">
         <h2 className="text-lg font-bold text-ink-900 sm:text-2xl">Planos para todo tamanho de negócio</h2>
         <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {planos.map((plano) => (
@@ -246,13 +263,13 @@ export function ParaEmpresasClient() {
                 ))}
               </ul>
               <LinkButton
-                href="/cadastro?tipo=empresa"
+                href={plano.precoMensal === 0 ? "/cadastro?tipo=empresa" : `/planos/comprar?plano=${plano.id}`}
                 variant={plano.destaque ? "primary" : "outline"}
                 size="sm"
                 className="mt-4"
                 fullWidth
               >
-                Começar
+                {plano.precoMensal === 0 ? "Começar" : "Adquirir plano"}
               </LinkButton>
             </div>
           ))}
