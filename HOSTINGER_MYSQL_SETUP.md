@@ -599,6 +599,13 @@ Depois do teste real de "Destaque na cidade" (Grafica Print Desing), a empresa n
 - Não muda o schema nem variável de ambiente — é só código, em `src/lib/companyData.ts`. Não precisa de `db push`.
 - **Importante**: essa correção garante que um impulsionamento ativo sempre apareça — mas não "ressuscita" um impulsionamento já vencido (causa 1 acima). Pra confirmar visualmente que está tudo funcionando, o teste mais confiável é com um impulsionamento comprado agora, ainda dentro do prazo.
 
+## Atualização: pagamentos do Impulsionar agora aparecem no Financeiro do admin
+
+Pergunta direta do cliente: "os valores de pagamentos aprovados no impulsionar já consta na área do admin como pago?" — a resposta era não. O Impulsionar sempre gravou na tabela própria `Boost` (não na `Payment`), e a tela Admin → Financeiro (`GET /api/admin/payments`) só lia a tabela `Payment` — ou seja, o dinheiro entrava de verdade (confirmado pelo Mercado Pago), mas não aparecia em nenhum relatório financeiro do admin, nem contava na "Receita" do topo da tela.
+
+- **Correção**: essa rota agora também busca os registros de `Boost` e mistura os dois na mesma lista, ordenados por data — cada impulsionamento aparece como "Impulsionar — <tipo do destaque> (<duração>)" (ex: "Impulsionar — Destaque na cidade (1 dia)"), com o valor real cobrado e o status traduzido (`pago`/`pendente` batem direto; `cancelado`/`expirado` entram como `falhou`, já que não representam dinheiro recebido). A "Receita" e o "Pendente" do topo da tela Financeiro agora somam certo, incluindo o Impulsionar.
+- Não muda o schema nem variável de ambiente — é só código, em `src/app/api/admin/payments/route.ts`. Não precisa de `db push`.
+
 ## O que ainda falta (próxima etapa)
 
 Com essa atualização, **todas as telas do menu Admin estão com dados reais** (Empresas, Empresas não reivindicadas, Usuários, Categorias, Bairros/dados de referência, Promoções, Cupons, Planos, Assinaturas, Financeiro, Anúncios, Prospecção, Relatórios, Configurações e Dashboard), e no Painel da empresa o **Impulsionar** já cobra e ativa de verdade. O que ainda fica de fora, pra quando quiser continuar:
