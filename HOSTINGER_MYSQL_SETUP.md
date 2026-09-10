@@ -576,6 +576,20 @@ Caso real visto em produção: pagamento via Pix de R$ 3,90 foi feito e o valor 
 - Não muda o schema nem variável de ambiente — é só código. Não precisa de `db push`.
 - Efeito colateral bom: como o `Boost` que ficou pendente na hora do teste já tem o `mpPaymentId` salvo, assim que essa atualização for pro ar, a própria tela (se ainda estiver aberta, consultando sozinha) já deve resolver sozinha e mostrar "Pago — ativo" sem precisar fazer nada manual.
 
+## Atualização: o impulsionamento pago agora realmente aparece no site público (antes não tinha efeito nenhum)
+
+Achado importante depois do primeiro pagamento de verdade: o Impulsionar já cobrava, confirmava o pagamento e criava o registro do destaque (`Ad`) no banco — mas **nada no site público lia essa tabela**. Ou seja, pagar não fazia a empresa aparecer em destaque em lugar nenhum; o dinheiro era cobrado, mas o produto não era entregue. Corrigido agora:
+
+- **"Destaque na home"** → conta pra entrar na seção "Empresas em destaque" da home pública, mesmo sem o selo Premium.
+- **"Destaque na categoria"** → a empresa aparece primeiro entre os resultados da própria categoria dela (`/categoria/[slug]`).
+- **"Destaque na cidade"** → conta na seção "Empresas perto de você" da home, e reforça a posição da empresa nas buscas já filtradas pela cidade dela.
+- **"Resultado patrocinado"** → a empresa aparece primeiro em qualquer busca (`/buscar`) e ganha o selo "PATROCINADO" que já existia na tela (antes só aparecia pra quem o admin marcava manualmente como `patrocinada`).
+- **"Promoção destacada"** → a promoção ativa da empresa aparece primeiro na aba Ofertas da home.
+- Em todos os casos, só conta enquanto o impulsionamento está dentro do prazo pago (`inicio`/`termino` do `Ad`) — quando vence, a empresa volta ao normal sozinha, sem precisar de nenhuma faxina manual (a consulta já filtra por data toda vez).
+- Na busca (`/buscar`), a forma de colocar os impulsionados na frente sem quebrar a paginação foi buscar a lista de IDs inteira primeiro (sem paginar), reordenar com os impulsionados na frente, e só depois cortar a página — assim uma empresa impulsionada nunca fica "escondida" numa página 2 ou 3.
+- Não muda o schema nem variável de ambiente — é só código, lendo uma tabela (`Ad`) que já existia. Não precisa de `db push`.
+- Arquivo novo: `src/lib/adBoosts.ts` (consulta os impulsionamentos ativos por tipo). Alterados: `src/lib/companyData.ts` (home, categoria, ofertas) e `src/app/api/companies/route.ts` (busca).
+
 ## O que ainda falta (próxima etapa)
 
 Com essa atualização, **todas as telas do menu Admin estão com dados reais** (Empresas, Empresas não reivindicadas, Usuários, Categorias, Bairros/dados de referência, Promoções, Cupons, Planos, Assinaturas, Financeiro, Anúncios, Prospecção, Relatórios, Configurações e Dashboard), e no Painel da empresa o **Impulsionar** já cobra e ativa de verdade. O que ainda fica de fora, pra quando quiser continuar:

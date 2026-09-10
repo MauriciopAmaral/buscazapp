@@ -7,6 +7,13 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Company, Coupon, HorarioDia, Product, Promotion, Review, Service } from "@/types";
+import { getActiveAdCompanyIds, getActiveAdCompanyIdsByTipo } from "@/lib/adBoosts";
+
+/** Reordena mantendo a ordem original dentro de cada grupo (sort é estável): impulsionados primeiro. */
+function comImpulsionadosNaFrente(empresas: Company[], impulsionados: Set<string>): Company[] {
+  if (impulsionados.size === 0) return empresas;
+  return [...empresas].sort((a, b) => Number(impulsionados.has(b.id)) - Number(impulsionados.has(a.id)));
+}
 
 // -------------------- Empresa --------------------
 
@@ -67,34 +74,49 @@ export function mapCompany(c: any, galeria: string[] = []): Company {
   };
 }
 
-/** Empresas ativas, mais recentes primeiro (patrocinadas sempre no topo). */
+/** Empresas ativas, mais recentes primeiro (patrocinadas e impulsionadas sempre no topo). */
 export async function getCompanies(take?: number): Promise<Company[]> {
+  // Usada na home como "Empresas perto de você" — conta tanto o impulsionamento
+  // "Resultado patrocinado" (geral) quanto "Destaque na cidade".
+  const impulsionadas = await getActiveAdCompanyIdsByTipo(["resultado_patrocinado", "destaque_cidade"]);
+  const boostIds = new Set([...impulsionadas.resultado_patrocinado, ...impulsionadas.destaque_cidade]);
+
   const rows = await prisma.company.findMany({
     where: { status: "ativo" },
     orderBy: [{ patrocinada: "desc" }, { verificado: "desc" }, { createdAt: "desc" }],
     include: companyListInclude,
-    ...(take ? { take } : {}),
+    ...(take ? { take: take + boostIds.size } : {}),
   });
-  return rows.map((c) => mapCompany(c));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tipos reais do Prisma só existem depois de `prisma generate`, que este sandbox não consegue rodar (ver AGENTS.md / HOSTINGER_MYSQL_SETUP.md); na Vercel o build gera o client normalmente.
+  const empresas: Company[] = (rows as any[]).map((c) => ({
+    ...mapCompany(c),
+    patrocinada: c.patrocinada || impulsionadas.resultado_patrocinado.has(c.id),
+  }));
+  const ordenadas = comImpulsionadosNaFrente(empresas, boostIds);
+  return take ? ordenadas.slice(0, take) : ordenadas;
 }
 
 export async function getCompaniesByCategorySlug(categoriaSlug: string): Promise<Company[]> {
+  const impulsionadas = await getActiveAdCompanyIds("destaque_categoria");
   const rows = await prisma.company.findMany({
     where: { status: "ativo", categoria: { slug: categoriaSlug } },
     orderBy: [{ patrocinada: "desc" }, { verificado: "desc" }],
     include: companyListInclude,
   });
-  return rows.map((c) => mapCompany(c));
+  const empresas = rows.map((c) => mapCompany(c));
+  return comImpulsionadosNaFrente(empresas, impulsionadas);
 }
 
 export async function getFeaturedCompanies(take = 6): Promise<Company[]> {
+  const impulsionadas = await getActiveAdCompanyIds("destaque_home");
   const rows = await prisma.company.findMany({
-    where: { status: "ativo", premium: true },
+    where: { status: "ativo", OR: [{ premium: true }, { id: { in: Array.from(impulsionadas) } }] },
     orderBy: [{ patrocinada: "desc" }, { avaliacaoMedia: "desc" }],
     include: companyListInclude,
-    take,
+    ...(impulsionadas.size ? {} : { take }),
   });
-  return rows.map((c) => mapCompany(c));
+  const empresas = rows.map((c) => mapCompany(c));
+  return comImpulsionadosNaFrente(empresas, impulsionadas).slice(0, take);
 }
 
 export async function getClubPartnerCompanies(): Promise<Company[]> {
@@ -226,14 +248,17 @@ export async function getAllCompanySlugs(): Promise<string[]> {
 // -------------------- Promoções e cupons (listagens gerais) --------------------
 
 export async function getActivePromotions(take?: number): Promise<Promotion[]> {
+  // Impulsionamento "Promoção destacada" — a promoção da empresa aparece
+  // na frente da aba Ofertas enquanto o impulsionamento estiver ativo.
+  const impulsionadas = await getActiveAdCompanyIds("promocao_destacada");
   const rows = await prisma.promotion.findMany({
     where: { status: "ativa" },
     orderBy: { createdAt: "desc" },
     include: { company: { select: { nomeFantasia: true, slug: true } } },
-    ...(take ? { take } : {}),
+    ...(take ? { take: take + impulsionadas.size } : {}),
   });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return rows.map((p: any) => ({
+  const promocoes = rows.map((p: any) => ({
     id: p.id,
     companyId: p.companyId,
     companyNome: p.company.nomeFantasia,
@@ -247,6 +272,13 @@ export async function getActivePromotions(take?: number): Promise<Promotion[]> {
     precoPromocional: Number(p.precoPromocional),
     status: p.status,
   }));
+  const ordenadas =
+    impulsionadas.size === 0
+      ? promocoes
+      : [...promocoes].sort(
+          (a, b) => Number(impulsionadas.has(b.companyId)) - Number(impulsionadas.has(a.companyId))
+        );
+  return take ? ordenadas.slice(0, take) : ordenadas;
 }
 
 export async function getActiveCoupons(take?: number): Promise<Coupon[]> {
