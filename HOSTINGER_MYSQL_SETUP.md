@@ -567,6 +567,15 @@ Depois de testar em produção, dois ajustes pedidos:
   5. Corrigido também um bug de um erro de pagamento visto em produção: a preferência estava mandando o e-mail da empresa como "pagador" — se esse e-mail bater com o e-mail da própria conta Mercado Pago que está recebendo (comum ao testar com a própria conta), o Mercado Pago recusava a cobrança inteira. Isso não existe mais nesse novo fluxo (o Payment Brick coleta o e-mail do pagador direto no formulário).
 - A página `/painel/impulsionar/retorno` (usada pelo fluxo antigo de redirecionamento) continua existindo no projeto mas não é mais usada — pode ficar aí sem problema, não afeta nada.
 
+## Atualização: Pix pago mas a tela ficava presa em "aguardando pagamento" (agora a própria tela reconfirma)
+
+Caso real visto em produção: pagamento via Pix de R$ 3,90 foi feito e o valor caiu na conta do Mercado Pago, mas a tela do Impulsionar continuou mostrando o QR code e "aguardando confirmação" — o `Boost` nunca virou "pago" nem o destaque foi ativado.
+
+- **Causa**: até aqui, quem confirmava um Pix era só o webhook (`POST /api/webhooks/mercadopago`, chamado pelo próprio Mercado Pago). Se por qualquer motivo essa notificação não chegar (ex: mudança recente de aplicação/credenciais, alguma instabilidade momentânea, ou simplesmente atraso), não existia nenhum outro jeito do sistema descobrir que o Pix tinha sido pago — a tela ficava consultando só o status já salvo no banco, que nunca era atualizado.
+- **Correção**: a mesma rota que a tela consulta a cada poucos segundos (`GET /api/painel/boosts/[id]`) agora não depende só do webhook — se o `Boost` ainda está "pendente" mas já tem um pagamento do Mercado Pago associado (salvo assim que o Pix é criado), essa rota também confere o status direto na API do Mercado Pago **na hora da consulta** e já atualiza o `Boost` (e ativa o destaque, se aprovado) antes de responder. O webhook continua existindo e funcionando normalmente — essa mudança é só uma segunda camada de segurança, pra nunca mais ficar um pagamento pago "preso" na tela.
+- Não muda o schema nem variável de ambiente — é só código. Não precisa de `db push`.
+- Efeito colateral bom: como o `Boost` que ficou pendente na hora do teste já tem o `mpPaymentId` salvo, assim que essa atualização for pro ar, a própria tela (se ainda estiver aberta, consultando sozinha) já deve resolver sozinha e mostrar "Pago — ativo" sem precisar fazer nada manual.
+
 ## O que ainda falta (próxima etapa)
 
 Com essa atualização, **todas as telas do menu Admin estão com dados reais** (Empresas, Empresas não reivindicadas, Usuários, Categorias, Bairros/dados de referência, Promoções, Cupons, Planos, Assinaturas, Financeiro, Anúncios, Prospecção, Relatórios, Configurações e Dashboard), e no Painel da empresa o **Impulsionar** já cobra e ativa de verdade. O que ainda fica de fora, pra quando quiser continuar:

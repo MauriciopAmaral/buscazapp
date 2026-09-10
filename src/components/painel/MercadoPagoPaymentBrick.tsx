@@ -100,11 +100,19 @@ export function MercadoPagoPaymentBrick({ publicKey, amount, onSubmit, onError }
             onSubmit: ({ formData }: { formData: Record<string, unknown> }) => {
               return onSubmitRef.current(formData);
             },
-            onError: (error: unknown) => {
+            onError: (error: { type?: string; message?: string; cause?: unknown }) => {
               console.error("[MercadoPagoPaymentBrick]", error);
               if (!cancelado) {
                 setCarregando(false);
-                onErrorRef.current?.("Não foi possível carregar o formulário de pagamento.");
+                // "cause" traz o motivo específico (ex: get_payment_methods_failed,
+                // fields_setup_failed) — mostra na tela pra facilitar o diagnóstico,
+                // em vez de só uma mensagem genérica.
+                const detalhes = [error?.message, error?.cause ? JSON.stringify(error.cause) : null]
+                  .filter(Boolean)
+                  .join(" — ");
+                onErrorRef.current?.(
+                  `Não foi possível carregar o formulário de pagamento.${detalhes ? ` (${detalhes})` : ""}`
+                );
               }
             },
           },
