@@ -627,6 +627,14 @@ Antes disso não existia nenhum jeito de comprar um plano de verdade — a seç�
 - **Precisa rodar `npx prisma db push`** — entrou a tabela nova `PlanPurchase`. **Rode antes do `git push`/deploy**, mesma lição de sempre: sem essa tabela em produção, comprar um plano quebra.
 - Arquivos novos: `src/lib/emailSender.ts`, `src/lib/planPurchasePayment.ts`, `src/app/api/planos/**` (rotas públicas de compra/pagamento/status), `src/app/(public)/planos/comprar/**` (tela de checkout). Alterados: `prisma/schema.prisma` (tabela `PlanPurchase`), `src/app/api/auth/register/route.ts`, `src/app/api/painel/company/create/route.ts`, `src/app/api/webhooks/mercadopago/route.ts`, `src/app/api/admin/payments/route.ts` e `[id]/route.ts`, `src/components/layout/Header.tsx`, `src/app/(public)/para-empresas/ParaEmpresasClient.tsx`, `src/app/(public)/cadastro/CadastroClient.tsx`, `src/context/AuthContext.tsx`, `.env.example`.
 
+## Atualização: corrigido erro de build na Vercel (TS18047) em GET /api/planos/[id]
+
+Depois do deploy da atualização anterior, a Vercel acusou `error TS18047: 'purchase' is possibly 'null'` em `src/app/api/planos/[id]/route.ts`, e o build falhou (não chegou a ir pro ar). Esse erro só aparece na Vercel (lá o Prisma Client é gerado de verdade e o TypeScript checa tudo com rigor) — neste sandbox de desenvolvimento o Prisma Client não é gerado (ver AGENTS.md), então esse tipo de erro não aparece aqui antes do deploy.
+
+- **Causa**: a rota consulta a compra (`purchase`), confere que não é nula, e — só quando o pagamento ainda está pendente — reconsulta e pode reatribuir uma versão atualizada (`purchase = atualizado`). Como a função que devolve essa versão atualizada foi tipada de forma solta (`any`, pela mesma razão do Prisma Client não gerado aqui), o TypeScript "esquece" a checagem de não-nulo feita antes, e passa a achar que `purchase` pode ser nulo de novo lá embaixo, mesmo não podendo.
+- **Correção**: adicionada uma segunda checagem de não-nulo logo depois desse trecho — nunca deixa de fazer o que já fazia, só reafirma pro TypeScript compilar.
+- Não muda o schema nem variável de ambiente — é só código. Não precisa de `db push`.
+
 ## O que ainda falta (próxima etapa)
 
 Com essa atualização, **todas as telas do menu Admin estão com dados reais** (Empresas, Empresas não reivindicadas, Usuários, Categorias, Bairros/dados de referência, Promoções, Cupons, Planos, Assinaturas, Financeiro, Anúncios, Prospecção, Relatórios, Configurações e Dashboard), e no Painel da empresa o **Impulsionar** já cobra e ativa de verdade. O que ainda fica de fora, pra quando quiser continuar:

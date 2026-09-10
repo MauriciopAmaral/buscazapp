@@ -26,6 +26,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
     }
 
+    // Reafirma pro TypeScript que `purchase` continua não-nulo depois do
+    // bloco acima — como `aplicarStatusPagamentoPlano` foi tipado com
+    // `any` (só existe tipo real do Prisma depois de `prisma generate`,
+    // que este sandbox não roda — ver AGENTS.md), a reatribuição
+    // `purchase = atualizado` faz o TypeScript "esquecer" a checagem de
+    // não-nulo já feita ali em cima quando o projeto builda na Vercel
+    // (lá sim com o client gerado de verdade e checagem estrita).
+    if (!purchase) return notFound("Compra não encontrada.");
+
     return ok({
       id: purchase.id,
       status: purchase.status,
