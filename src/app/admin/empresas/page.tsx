@@ -4,9 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { Eye, CheckCircle2, XCircle, Pencil, Power, Trash2 } from "lucide-react";
 import { DataTable, Badge, FilterBar, Select, SearchInput, LoadingState } from "@/components/ui";
-import { planos } from "@/mocks/subscriptions";
 import { useAuth } from "@/context/AuthContext";
-import { Category, Company } from "@/types";
+import { Category, Company, Plano } from "@/types";
 import { normalizeForCompare } from "@/lib/utils";
 import Link from "next/link";
 
@@ -14,6 +13,7 @@ export default function AdminEmpresasPage() {
   const { token } = useAuth();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [planos, setPlanos] = useState<Plano[]>([]);
   const [loading, setLoading] = useState(true);
   const [termo, setTermo] = useState("");
   const [cidade, setCidade] = useState("");
@@ -28,11 +28,13 @@ export default function AdminEmpresasPage() {
     Promise.all([
       fetch("/api/admin/companies", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
       fetch("/api/categories").then((r) => r.json()),
+      fetch("/api/admin/plans", { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json()),
     ])
-      .then(([companiesJson, categoriesJson]) => {
+      .then(([companiesJson, categoriesJson, planosJson]) => {
         if (cancelled) return;
         if (companiesJson?.success) setCompanies(companiesJson.data);
         if (categoriesJson?.success) setCategories(categoriesJson.data);
+        if (planosJson?.success) setPlanos(planosJson.data);
       })
       .catch(() => undefined)
       .finally(() => {

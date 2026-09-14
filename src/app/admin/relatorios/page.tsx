@@ -42,6 +42,48 @@ export default function RelatoriosPage() {
 
   const t = dados?.totais;
 
+  const exportarCsv = () => {
+    if (!dados) return;
+    const linhas: string[] = [];
+    const escapar = (valor: string | number) => {
+      const texto = String(valor);
+      return /[";\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
+    };
+    linhas.push("Relatório BuscaZapp — " + new Date().toLocaleDateString("pt-BR"));
+    linhas.push("");
+    linhas.push("Indicador;Valor");
+    linhas.push(`Empresas cadastradas;${t?.empresas ?? 0}`);
+    linhas.push(`Assinaturas ativas;${t?.assinaturasAtivas ?? 0}`);
+    linhas.push(`Receita total;${formatCurrency(t?.receita ?? 0)}`);
+    linhas.push(`Leads gerados;${t?.leads ?? 0}`);
+    linhas.push(`Categorias ativas;${t?.categorias ?? 0}`);
+    linhas.push(`Cidades com cobertura;${t?.cidades ?? 0}`);
+    linhas.push(`Taxa de conversão;${t?.taxaConversao ?? 0}%`);
+
+    const secao = (titulo: string, dadosSecao: { nome: string; total: number }[]) => {
+      linhas.push("");
+      linhas.push(titulo);
+      linhas.push("Nome;Total");
+      for (const item of dadosSecao) {
+        linhas.push(`${escapar(item.nome)};${item.total}`);
+      }
+    };
+    secao("Empresas por cidade", dados.empresasPorCidade);
+    secao("Top categorias", dados.empresasPorCategoria);
+    secao("Leads por origem", dados.leadsPorOrigem);
+
+    const csv = "﻿" + linhas.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `relatorio-buscazapp-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const relatorios = [
     { titulo: "Empresas", descricao: t ? `${t.empresas} empresas cadastradas` : "Distribuição de empresas por cidade" },
     { titulo: "Assinaturas", descricao: t ? `${t.assinaturasAtivas} assinaturas ativas na base` : "" },
@@ -59,8 +101,8 @@ export default function RelatoriosPage() {
           <h1 className="text-xl font-bold text-ink-900 sm:text-2xl">Relatórios</h1>
           <p className="text-sm text-ink-500">Visão consolidada de indicadores da plataforma.</p>
         </div>
-        <Button variant="outline" icon={<Download size={16} />} disabled>
-          Exportar (em breve)
+        <Button variant="outline" icon={<Download size={16} />} disabled={!dados} onClick={exportarCsv}>
+          Exportar CSV
         </Button>
       </div>
 

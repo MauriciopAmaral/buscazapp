@@ -676,13 +676,25 @@ Três ajustes pedidos depois do teste da atualização anterior:
 - **Precisa rodar `npx prisma db push`** — entrou um campo novo na `Subscription` (`lembreteEnviadoEm`, só controla se o lembrete já foi mandado hoje). **Rode antes do `git push`/deploy.**
 - Arquivos novos: `vercel.json`, `src/app/api/cron/lembretes-assinatura/route.ts`, `src/app/painel/financeiro/FinanceiroClient.tsx` (o conteúdo antigo de `page.tsx`, agora separado pra poder ler o link do lembrete). Alterados: `prisma/schema.prisma`, `src/components/painel/TrocarPlanoPagamento.tsx`, `src/app/painel/financeiro/page.tsx`, `.env.example`.
 
+## Atualização: auditoria da tela Admin pra liberar o sistema pra uso online
+
+Revisão completa de tudo que fica embaixo de `/admin` (todas as ~20 telas do menu e as 31 rotas de API que elas usam), pedida pra confirmar que dava pra liberar o sistema pro público. Resultado: **o Admin já estava, na prática, quase todo real** — nenhuma tela usa dado mockado no servidor, e praticamente todo botão/ação (editar, ativar/desativar, excluir, aprovar reivindicação, marcar pagamento como pago etc.) já chamava uma rota de verdade no banco. Foram encontrados e corrigidos dois problemas pontuais:
+
+- **Admin → Empresas usava plano "de mentira"**: o filtro por plano e a etiqueta de plano de cada empresa na lista ainda vinham de um arquivo de dados fixos (`@/mocks/subscriptions`), não do banco — então, se alguém renomeasse ou reprecificasse um plano em Admin → Planos, essa lista continuava mostrando o nome/preço antigo. Corrigido: agora busca os planos reais em `GET /api/admin/plans`, igual a tela Admin → Planos já fazia.
+- **Botão "Exportar" de Admin → Relatórios estava desativado** ("Exportar (em breve)"). Agora exporta de verdade um CSV com os indicadores e os três gráficos (empresas por cidade, top categorias, leads por origem) — gerado no navegador a partir dos mesmos dados já carregados na tela, sem precisar de rota nova.
+
+Um terceiro ponto **não é um bug de código, é uma configuração a confirmar na Vercel antes de liberar**: o upload de logo/fotos em Admin → Configurações (e no Painel da empresa) depende das variáveis `FTP_HOST`/`FTP_USER`/`FTP_PASSWORD`/`FTP_BASE_PATH`/`UPLOADS_PUBLIC_URL` estarem configuradas lá — o código está certo, mas isso não dá pra verificar daqui. Antes de divulgar o sistema, vale testar um upload de foto de verdade em produção pra confirmar.
+
+Não muda o schema — não precisa de `db push` por causa desta atualização. Alterados: `src/app/admin/empresas/page.tsx`, `src/app/admin/relatorios/page.tsx`.
+
 ## O que ainda falta (próxima etapa)
 
-Com essa atualização, **todas as telas do menu Admin estão com dados reais** (Empresas, Empresas não reivindicadas, Usuários, Categorias, Bairros/dados de referência, Promoções, Cupons, Planos, Assinaturas, Financeiro, Anúncios, Prospecção, Relatórios, Configurações e Dashboard), e no Painel da empresa o **Impulsionar**, a **Assinatura** e o **Financeiro** já cobram e ativam de verdade. O que ainda fica de fora, pra quando quiser continuar:
+Depois dessa auditoria, **o Admin está pronto pra uso online** — todas as telas leem e gravam dados reais, e os dois problemas encontrados (plano mockado em Empresas, exportar em Relatórios) já foram corrigidos. No Painel da empresa, o **Impulsionar**, a **Assinatura** e o **Financeiro** também já cobram e ativam de verdade. O que ainda fica de fora, pra quando quiser continuar — nenhum deles é da tela Admin, são do Painel da empresa (não bloqueiam o lançamento, mas valem ser resolvidos com calma):
 
 1. **Painel da empresa → Configurações**: tela decorativa — toggles de notificação, "Atualizar senha" e "Excluir conta" não fazem nada ainda.
-2. **Exportar relatórios** (CSV/PDF) — hoje o botão "Exportar" existe na tela de Relatórios (admin) mas fica desativado.
-3. **Disparo automático das notificações internas** (e-mail/WhatsApp real pra equipe quando entra uma reivindicação nova ou um pagamento fica pendente) — hoje só existe o toggle de preferência salvo; o envio em si ainda não está automatizado.
-4. **Validação de verdade na reivindicação de perfil e no "esqueci minha senha"** (enviar código/link por e-mail/SMS real, em vez de mostrar na tela) — precisa de um serviço de envio (ex: Resend, já configurado pra planos — dá pra reaproveitar aqui) ou alguma API de SMS.
+2. **Disparo automático das notificações internas** (e-mail/WhatsApp real pra equipe quando entra uma reivindicação nova ou um pagamento fica pendente) — hoje só existe o toggle de preferência salvo; o envio em si ainda não está automatizado.
+3. **Validação de verdade na reivindicação de perfil e no "esqueci minha senha"** (enviar código/link por e-mail/SMS real, em vez de mostrar na tela) — precisa de um serviço de envio (ex: Resend, já configurado pra planos — dá pra reaproveitar aqui) ou alguma API de SMS.
+
+Antes de divulgar publicamente, vale confirmar na Vercel: `MP_ACCESS_TOKEN`, `NEXT_PUBLIC_MP_PUBLIC_KEY`, `SITE_BASE_URL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CRON_SECRET`, e as variáveis de FTP/`UPLOADS_PUBLIC_URL` (item acima) — e testar um upload de foto real em produção.
 
 Me diz por qual desses quer que eu continue — ou me passa as credenciais de FTP do item acima que eu já deixo o upload de fotos funcionando em produção.
