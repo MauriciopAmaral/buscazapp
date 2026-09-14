@@ -367,6 +367,12 @@ model Subscription {
   status          SubscriptionStatus  @default(ativa)
   proximaCobranca DateTime
   valor           Decimal             @db.Decimal(10, 2)
+  // Último dia (só a data, sem hora) em que o lembrete de vencimento foi
+  // mandado por e-mail pra essa assinatura — ver
+  // src/app/api/cron/lembretes-assinatura/route.ts. Evita mandar o mesmo
+  // lembrete mais de uma vez no mesmo dia se a tarefa agendada rodar de
+  // novo por qualquer motivo.
+  lembreteEnviadoEm DateTime?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 }

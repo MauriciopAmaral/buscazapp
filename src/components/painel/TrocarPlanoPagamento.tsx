@@ -89,6 +89,17 @@ export function TrocarPlanoPagamento({ token, planoId, nomePlano, periodicidade,
     }
   };
 
+  // Dispara a criação da troca de plano assim que o componente aparece —
+  // antes exigia um clique extra em "Continuar" (a pessoa clicava
+  // "Assinar"/"Continuar para pagamento" na tela de fora, e essa aqui só
+  // mostrava outro botão "Continuar" de novo, o que parecia estar travado).
+  // Agora vai direto pro método de pagamento escolhido, como pedido.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- dispara a troca assim que o componente monta com um token válido, é a única forma de "ir direto pro pagamento" sem clique extra
+    if (token) void iniciar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só dispara uma vez, quando o componente monta com um token válido
+  }, [token]);
+
   const verificar = async (id: string) => {
     const inicio = Date.now();
     let confirmado = false;
@@ -169,14 +180,21 @@ export function TrocarPlanoPagamento({ token, planoId, nomePlano, periodicidade,
           >
             <ArrowLeft size={14} /> Cancelar
           </button>
-          <p className="mt-3 text-sm text-ink-500">Trocar assinatura para</p>
-          <p className="text-lg font-bold text-ink-900">
-            {nomePlano} <span className="font-normal text-ink-500">— {LABEL_PERIODO[periodicidade]}</span>
-          </p>
-          <Button className="mt-4" onClick={iniciar} disabled={criando}>
-            {criando ? "Confirmando..." : "Continuar"}
-          </Button>
-          {erro && <p className="mt-3 text-sm text-red-600">{erro}</p>}
+          <div className="mt-4 flex flex-col items-center py-4 text-center">
+            {criando && <Loader2 size={22} className="mb-3 animate-spin text-brand-600" />}
+            <p className="text-sm text-ink-500">Preparando pagamento de</p>
+            <p className="text-lg font-bold text-ink-900">
+              {nomePlano} <span className="font-normal text-ink-500">— {LABEL_PERIODO[periodicidade]}</span>
+            </p>
+          </div>
+          {erro && (
+            <div className="text-center">
+              <p className="text-sm text-red-600">{erro}</p>
+              <Button className="mt-3" variant="outline" onClick={iniciar}>
+                Tentar de novo
+              </Button>
+            </div>
+          )}
         </>
       )}
 
