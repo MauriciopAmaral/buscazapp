@@ -122,7 +122,7 @@ export default async function HomePage() {
               Cadastre sua empresa gratuitamente e comece a receber clientes direto no WhatsApp.
             </p>
           </div>
-          <LinkButton href="/cadastro?tipo=empresa" variant="primary" size="lg" iconRight={<ArrowRight size={18} />}>
+          <LinkButton href="/para-empresas#planos" variant="primary" size="lg" iconRight={<ArrowRight size={18} />}>
             CADASTRE SUA EMPRESA
           </LinkButton>
         </div>

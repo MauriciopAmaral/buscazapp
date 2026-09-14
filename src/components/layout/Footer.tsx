@@ -15,7 +15,7 @@ const columns = [
     title: "Para empresas",
     links: [
       { href: "/para-empresas", label: "Por que anunciar" },
-      { href: "/cadastro?tipo=empresa", label: "Cadastre sua empresa" },
+      { href: "/para-empresas#planos", label: "Cadastre sua empresa" },
       { href: "/reivindicar", label: "Reivindicar empresa" },
       { href: "/painel/assinatura", label: "Planos e preços" },
       { href: "/painel", label: "Painel da empresa" },

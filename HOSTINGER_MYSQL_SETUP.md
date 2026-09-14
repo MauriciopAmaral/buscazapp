@@ -635,15 +635,42 @@ Depois do deploy da atualização anterior, a Vercel acusou `error TS18047: 'pur
 - **Correção**: adicionada uma segunda checagem de não-nulo logo depois desse trecho — nunca deixa de fazer o que já fazia, só reafirma pro TypeScript compilar.
 - Não muda o schema nem variável de ambiente — é só código. Não precisa de `db push`.
 
+## Atualização: botões "Cadastre sua empresa" agora levam pros Planos, e tela de verificação real do pagamento por cartão
+
+Dois ajustes pedidos depois do primeiro teste em produção:
+
+- **Botões "Cadastre sua empresa" agora levam pra seção de Planos** (`/para-empresas#planos`), em vez de ir direto pro cadastro grátis — no cabeçalho do site (versão computador e celular), no rodapé, e no botão de destaque da página inicial ("Sua empresa ainda não está no BuscaZapp?"). Lá a pessoa escolhe entre o plano Gratuito ("Começar", cadastro direto, sem pagamento) ou um plano pago ("Adquirir plano", com o fluxo de pagamento). O botão "Começar" de cada plano pago individual (dentro da tela de planos) continua levando direto pro pagamento daquele plano.
+- **Pagamento por cartão de crédito agora passa por uma tela de verificação real de ~10 segundos** antes de mostrar "Pagamento aprovado". Antes, assim que o Mercado Pago respondia "aprovado" (o que acontece na hora, ao contrário do Pix), a tela já pulava direto pra tela de sucesso e pro cadastro — rápido demais pra passar confiança, e sem nenhuma segunda checagem. Agora aparece "Verificando seu pagamento..." por pelo menos 10s, durante os quais a tela reconsulta o status real da compra (mesma rota "self-healing" que já existia pro Pix, que reconfirma direto com o Mercado Pago) antes de liberar o cadastro. Se por algum motivo raro não confirmar nesse tempo (ex: cartão caiu em análise), a tela não trata como erro — continua consultando sozinha até confirmar ou ser recusado, do mesmo jeito que já acontecia com o Pix.
+- Não muda o schema nem variável de ambiente — é só código (`src/components/layout/Header.tsx`, `src/components/layout/Footer.tsx`, `src/app/(public)/page.tsx`, `src/app/(public)/planos/comprar/PlanosComprarClient.tsx`). Não precisa de `db push`.
+
+### Sobre os e-mails que não chegaram
+
+O relato foi que nem o e-mail de "pagamento efetuado" nem o de "cadastro efetuado" chegaram. Revisei o código de ponta a ponta (o envio é disparado nos dois momentos certos: assim que o pagamento é aprovado, e assim que o cadastro é concluído) e não achei nenhum bug — a explicação mais provável é a mesma que já tinha avisado na atualização anterior: **as variáveis `RESEND_API_KEY` e `RESEND_FROM_EMAIL` ainda não foram configuradas na Vercel**. Sem elas, o projeto continua funcionando normalmente (é assim de propósito, pra um e-mail não configurado não quebrar pagamento nem cadastro) — só que o e-mail não sai de verdade, fica só registrado no log do servidor (Vercel → seu projeto → aba "Logs", procurando por `[emailSender]`).
+
+Se essas variáveis **já** estiverem configuradas e mesmo assim o e-mail não chegar, o motivo mais comum é o domínio do `RESEND_FROM_EMAIL` não estar verificado no Resend (Resend → Domains) — sem um domínio verificado, a conta do Resend só consegue mandar e-mail de teste pro próprio e-mail que criou a conta, pra qualquer outro destinatário a mensagem é recusada silenciosamente (não aparece erro nenhum na tela do BuscaZapp, porque o envio de e-mail nunca bloqueia o pagamento/cadastro — só fica falhando por trás). Vale conferir os dois: a variável está configurada? o domínio está verificado?
+
+## Atualização: Painel → Assinatura e Financeiro agora são de verdade (trocar de plano paga na hora)
+
+As telas Painel da empresa → Assinatura e → Financeiro eram 100% simuladas desde sempre — nem liam a empresa de quem estava logado (Financeiro pegava "a primeira empresa reivindicada" do banco de mentira, não a da sessão), o botão "Assinar" não fazia nada, e o "cartão terminado em •••• 4242" era um texto fixo. Isso já estava documentado como pendência na seção "O que ainda falta" mais abaixo neste guia. Agora:
+
+- **As duas telas leem dados reais**: plano atual, assinatura (`Subscription`) e histórico de pagamentos (`Payment`) da empresa de quem está logado — novo endpoint `GET /api/painel/subscription`.
+- **Trocar de plano agora funciona de verdade**, nas duas telas:
+  - Na **Assinatura**, clicar em "Assinar" num plano diferente do atual abre o pagamento embutido ali mesmo (cartão ou Pix, mesmo Payment Brick do Impulsionar/Planos, com a mesma tela de verificação de ~10s pro cartão).
+  - No **Financeiro**, uma seção nova "Trocar plano" deixa escolher o plano e a periodicidade num seletor e clicar em "Continuar para pagamento" — já abre o mesmo fluxo de pagamento ali, sem precisar ir pra outra tela.
+  - **Trocar pro plano Gratuito não cobra nada** — aplica na hora, sem passar pelo Mercado Pago.
+  - Quando o pagamento é aprovado, a `Subscription` da empresa é atualizada (ou criada, se ainda não tinha nenhuma), o `planoId` da própria empresa muda (é o que já vale pras listagens públicas — destaque etc.), e um novo `Payment` é gravado no histórico — que também aparece automaticamente no Admin → Financeiro, porque essa tela já lê a tabela `Payment`.
+- **Tabela nova `SubscriptionChange`** guarda cada troca de plano (parecido com o `Boost` do Impulsionar e o `PlanPurchase` da compra pública) — pendente/pago/cancelado, com reconciliação "self-healing" (`GET /api/painel/subscription/mudar/[id]`) e webhook do Mercado Pago compartilhado com Boost e PlanPurchase (o mesmo endpoint de sempre, `POST /api/webhooks/mercadopago`, agora sabe reconhecer as três origens).
+- **Precisa rodar `npx prisma db push`** — entrou a tabela nova `SubscriptionChange` e uma relação nova na `Company`. **Rode antes do `git push`/deploy.**
+- Não precisa de variável de ambiente nova (usa o Mercado Pago já configurado).
+- Arquivos novos: `src/lib/subscriptionChangePayment.ts`, `src/app/api/painel/subscription/**`, `src/components/painel/TrocarPlanoPagamento.tsx`. Alterados: `prisma/schema.prisma`, `src/app/api/webhooks/mercadopago/route.ts`, `src/app/painel/assinatura/page.tsx`, `src/app/painel/financeiro/page.tsx`.
+
 ## O que ainda falta (próxima etapa)
 
-Com essa atualização, **todas as telas do menu Admin estão com dados reais** (Empresas, Empresas não reivindicadas, Usuários, Categorias, Bairros/dados de referência, Promoções, Cupons, Planos, Assinaturas, Financeiro, Anúncios, Prospecção, Relatórios, Configurações e Dashboard), e no Painel da empresa o **Impulsionar** já cobra e ativa de verdade. O que ainda fica de fora, pra quando quiser continuar:
+Com essa atualização, **todas as telas do menu Admin estão com dados reais** (Empresas, Empresas não reivindicadas, Usuários, Categorias, Bairros/dados de referência, Promoções, Cupons, Planos, Assinaturas, Financeiro, Anúncios, Prospecção, Relatórios, Configurações e Dashboard), e no Painel da empresa o **Impulsionar**, a **Assinatura** e o **Financeiro** já cobram e ativam de verdade. O que ainda fica de fora, pra quando quiser continuar:
 
-1. **Painel da empresa → Financeiro**: bug real encontrado — a tela mostra os dados financeiros de uma empresa qualquer (a primeira "reivindicada" encontrada), não da empresa de quem está logado. Precisa trocar pra usar a empresa certa antes de liberar essa tela pra uso de verdade.
-2. **Painel da empresa → Assinatura**: ainda mostra planos fixos (mock) e o botão "Assinar" não faz nada — não cobra, não muda o plano da empresa.
-3. **Painel da empresa → Configurações**: tela decorativa — toggles de notificação, "Atualizar senha" e "Excluir conta" não fazem nada ainda.
-4. **Exportar relatórios** (CSV/PDF) — hoje o botão "Exportar" existe na tela de Relatórios (admin) mas fica desativado.
-5. **Disparo automático das notificações internas** (e-mail/WhatsApp real pra equipe quando entra uma reivindicação nova ou um pagamento fica pendente) — hoje só existe o toggle de preferência salvo; o envio em si ainda não está automatizado.
-6. **Validação de verdade na reivindicação de perfil e no "esqueci minha senha"** (enviar código/link por e-mail/SMS real, em vez de mostrar na tela) — precisa de um serviço de envio (ex: Resend pra e-mail, alguma API de SMS) configurado com chave de API.
+1. **Painel da empresa → Configurações**: tela decorativa — toggles de notificação, "Atualizar senha" e "Excluir conta" não fazem nada ainda.
+2. **Exportar relatórios** (CSV/PDF) — hoje o botão "Exportar" existe na tela de Relatórios (admin) mas fica desativado.
+3. **Disparo automático das notificações internas** (e-mail/WhatsApp real pra equipe quando entra uma reivindicação nova ou um pagamento fica pendente) — hoje só existe o toggle de preferência salvo; o envio em si ainda não está automatizado.
+4. **Validação de verdade na reivindicação de perfil e no "esqueci minha senha"** (enviar código/link por e-mail/SMS real, em vez de mostrar na tela) — precisa de um serviço de envio (ex: Resend, já configurado pra planos — dá pra reaproveitar aqui) ou alguma API de SMS.
 
 Me diz por qual desses quer que eu continue — ou me passa as credenciais de FTP do item acima que eu já deixo o upload de fotos funcionando em produção.

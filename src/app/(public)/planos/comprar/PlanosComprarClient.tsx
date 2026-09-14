@@ -44,7 +44,19 @@ interface PixInfo {
   qrCodeBase64: string | null;
 }
 
-type Etapa = "dados" | "pagamento" | "sucesso" | "recusado";
+type Etapa = "dados" | "pagamento" | "verificando" | "sucesso" | "recusado";
+
+/** Tempo mínimo (ms) que a tela "verificando pagamento" fica visível — não é só
+ * cosmético: durante esse tempo a tela também reconsulta o status de verdade
+ * (ver `verificarPagamento` mais abaixo), em vez de confiar cegamente na
+ * primeira resposta do cartão. */
+const DURACAO_MINIMA_VERIFICACAO_MS = 10000;
+const INTERVALO_VERIFICACAO_MS = 2000;
+const TENTATIVAS_MAX_VERIFICACAO = 8; // ~16s de reconsultas, além do mínimo de 10s na tela
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 const publicKey = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY ?? "";
 
@@ -157,19 +169,71 @@ export function PlanosComprarClient() {
         return;
       }
       const data = json.data;
-      if (data.status === "pago") {
-        setCadastroToken(data.cadastroToken ?? null);
-        setEtapa("sucesso");
-      } else if (data.pix?.qrCode || data.pix?.qrCodeBase64) {
+      if (data.pix?.qrCode || data.pix?.qrCodeBase64) {
+        // Pix precisa mesmo da tela de QR code (a pessoa ainda vai pagar) —
+        // a confirmação real já acontece pelo polling de "aguardandoPix" mais
+        // abaixo.
         setPix(data.pix);
         setAguardandoPix(true);
       } else if (data.status === "cancelado") {
         setEtapa("recusado");
       } else {
-        setAguardandoPix(true);
+        // Cartão de crédito: em vez de confiar direto na resposta e já
+        // mostrar "sucesso", passa por uma tela de verificação (mínimo 10s)
+        // que reconsulta o status de verdade antes de confirmar.
+        setEtapa("verificando");
+        void verificarPagamento(purchaseId);
       }
     } catch {
       setErro("Não foi possível conectar ao servidor.");
+    }
+  };
+
+  /** Reconsulta o status da compra (GET /api/planos/[id], que é
+   * "self-healing" — reconfirma direto com o Mercado Pago quando ainda está
+   * pendente) por pelo menos 10s antes de declarar sucesso, em vez de
+   * confiar cegamente na primeira resposta do pagamento por cartão. */
+  const verificarPagamento = async (id: string) => {
+    const inicio = Date.now();
+    let confirmado = false;
+    let cancelado = false;
+    let token: string | null = null;
+
+    for (let tentativa = 0; tentativa < TENTATIVAS_MAX_VERIFICACAO && !confirmado && !cancelado; tentativa++) {
+      await sleep(INTERVALO_VERIFICACAO_MS);
+      try {
+        const res = await fetch(`/api/planos/${id}`);
+        const json = await res.json().catch(() => null);
+        if (json?.success) {
+          if (json.data.status === "pago") {
+            confirmado = true;
+            token = json.data.cadastroToken ?? null;
+          } else if (json.data.status === "cancelado") {
+            cancelado = true;
+          }
+        }
+      } catch {
+        // tenta de novo na próxima volta
+      }
+    }
+
+    const decorrido = Date.now() - inicio;
+    if (decorrido < DURACAO_MINIMA_VERIFICACAO_MS) {
+      await sleep(DURACAO_MINIMA_VERIFICACAO_MS - decorrido);
+    }
+
+    if (cancelado) {
+      setEtapa("recusado");
+    } else if (confirmado) {
+      setCadastroToken(token);
+      setEtapa("sucesso");
+    } else {
+      // Não confirmou nesse tempo (raro — pode ser um cartão que caiu em
+      // análise) — não trata como erro definitivo: continua na tela de
+      // verificação, mas passa a consultar de forma indefinida (mesmo
+      // polling a cada 3s que o Pix usa, no useEffect de `aguardandoPix`
+      // mais abaixo), até confirmar ou cancelar.
+      setAguardandoPix(true);
     }
   };
 
@@ -360,6 +424,19 @@ export function PlanosComprarClient() {
           )}
 
           {erro && <p className="mt-4 text-sm text-red-600">{erro}</p>}
+        </div>
+      )}
+
+      {etapa === "verificando" && (
+        <div className="mt-6 flex flex-col items-center rounded-2xl border border-ink-200 bg-white px-4 py-12 text-center">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+            <Loader2 size={30} className="animate-spin" />
+          </span>
+          <h2 className="mt-5 text-xl font-bold text-ink-900">Verificando seu pagamento...</h2>
+          <p className="mt-2 max-w-xs text-sm text-ink-500">
+            Estamos confirmando com o Mercado Pago se o pagamento foi mesmo concluído. Isso leva só alguns segundos —
+            não feche esta página.
+          </p>
         </div>
       )}
 

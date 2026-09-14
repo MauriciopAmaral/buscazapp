@@ -63,7 +63,7 @@ export function Header({ siteName = "BuscaZapp", logoUrl }: HeaderProps) {
               <LinkButton href="/login" variant="ghost" size="sm">
                 Entrar
               </LinkButton>
-              <LinkButton href="/cadastro?tipo=empresa" variant="primary" size="sm">
+              <LinkButton href="/para-empresas#planos" variant="primary" size="sm">
                 Cadastre sua empresa
               </LinkButton>
             </>
@@ -125,7 +125,7 @@ export function Header({ siteName = "BuscaZapp", logoUrl }: HeaderProps) {
                 <LinkButton href="/login" variant="outline" size="sm">
                   Entrar
                 </LinkButton>
-                <LinkButton href="/cadastro?tipo=empresa" variant="primary" size="sm">
+                <LinkButton href="/para-empresas#planos" variant="primary" size="sm">
                   Cadastre sua empresa
                 </LinkButton>
               </>

@@ -1,15 +1,82 @@
-import { CreditCard, Calendar } from "lucide-react";
-import { DataTable, Badge } from "@/components/ui";
-import { companies } from "@/mocks/companies";
-import { getSubscriptionByCompany, getPaymentsByCompany, planos } from "@/mocks/subscriptions";
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { CreditCard, Calendar, RefreshCw } from "lucide-react";
+import { DataTable, Badge, Select, Button, LoadingState } from "@/components/ui";
+import { useAuth } from "@/context/AuthContext";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { TrocarPlanoPagamento } from "@/components/painel/TrocarPlanoPagamento";
+
+type Periodicidade = "mensal" | "trimestral" | "anual";
+
+interface PlanoReal {
+  id: string;
+  nome: string;
+  precoMensal: number;
+  precoTrimestral: number;
+  precoAnual: number;
+}
+
+interface PagamentoReal {
+  id: string;
+  data: string;
+  descricao: string;
+  valor: number;
+  status: "pago" | "pendente" | "falhou";
+}
 
 export default function FinanceiroPage() {
-  // Empresa padrão do protótipo (a mesma usada em useCurrentCompany no server não é possível; usamos a primeira reivindicada)
-  const company = companies.find((c) => c.reivindicada) ?? companies[0];
-  const subscription = getSubscriptionByCompany(company.id);
-  const payments = getPaymentsByCompany(company.id);
-  const plano = planos.find((p) => p.id === company.planoId);
+  const { token } = useAuth();
+  const [carregando, setCarregando] = useState(true);
+  const [planoId, setPlanoId] = useState("gratuito");
+  const [subscription, setSubscription] = useState<{
+    planoId: string;
+    periodicidade: Periodicidade;
+    status: string;
+    proximaCobranca: string;
+    valor: number;
+  } | null>(null);
+  const [payments, setPayments] = useState<PagamentoReal[]>([]);
+  const [planos, setPlanos] = useState<PlanoReal[]>([]);
+
+  const [trocando, setTrocando] = useState(false);
+  const [novoPlanoId, setNovoPlanoId] = useState("");
+  const [novaPeriodicidade, setNovaPeriodicidade] = useState<Periodicidade>("mensal");
+
+  const carregar = useCallback(async () => {
+    if (!token) return;
+    setCarregando(true);
+    try {
+      const [resSub, resPlanos] = await Promise.all([
+        fetch("/api/painel/subscription", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("/api/planos"),
+      ]);
+      const jsonSub = await resSub.json().catch(() => null);
+      const jsonPlanos = await resPlanos.json().catch(() => null);
+      if (jsonSub?.success) {
+        setPlanoId(jsonSub.data.planoId);
+        setSubscription(jsonSub.data.subscription);
+        setPayments(jsonSub.data.payments);
+      }
+      if (jsonPlanos?.success) {
+        setPlanos(jsonPlanos.data);
+        if (!novoPlanoId && jsonPlanos.data[0]) setNovoPlanoId(jsonPlanos.data[0].id);
+      }
+    } finally {
+      setCarregando(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- busca assinatura/histórico e catálogo de planos assim que o token estiver disponível
+    carregar();
+  }, [carregar]);
+
+  const plano = planos.find((p) => p.id === planoId);
+  const planoEscolhido = planos.find((p) => p.id === novoPlanoId);
+
+  if (carregando) return <LoadingState rows={4} />;
 
   return (
     <div>
@@ -21,11 +88,15 @@ export default function FinanceiroPage() {
           <div className="flex items-center gap-2 text-sm font-medium text-ink-800">
             <CreditCard size={16} className="text-ink-400" /> Plano atual
           </div>
-          <p className="mt-2 text-lg font-bold text-ink-900">{plano?.nome}</p>
-          <p className="text-sm text-ink-500">{formatCurrency(subscription?.valor ?? 0)} / {subscription?.periodicidade}</p>
-          <Badge variant={subscription?.status === "atrasada" ? "danger" : "success"} className="mt-2">
-            {subscription?.status ?? "ativa"}
-          </Badge>
+          <p className="mt-2 text-lg font-bold text-ink-900">{plano?.nome ?? planoId}</p>
+          <p className="text-sm text-ink-500">
+            {subscription ? `${formatCurrency(subscription.valor)} / ${subscription.periodicidade}` : "Plano gratuito"}
+          </p>
+          {subscription && (
+            <Badge variant={subscription.status === "atrasada" ? "danger" : "success"} className="mt-2">
+              {subscription.status}
+            </Badge>
+          )}
         </div>
 
         <div className="rounded-2xl border border-ink-200 bg-white p-5">
@@ -35,8 +106,63 @@ export default function FinanceiroPage() {
           <p className="mt-2 text-lg font-bold text-ink-900">
             {subscription ? formatDate(subscription.proximaCobranca) : "—"}
           </p>
-          <p className="text-sm text-ink-500">Cartão terminado em •••• 4242 (simulado)</p>
+          <p className="text-sm text-ink-500">
+            {subscription ? "Cobrada por cartão de crédito ou Pix, quando você trocar de plano" : "Nenhuma assinatura ativa"}
+          </p>
         </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-ink-200 bg-white p-5">
+        <div className="flex items-center gap-2 text-sm font-semibold text-ink-900">
+          <RefreshCw size={16} /> Trocar plano
+        </div>
+
+        {trocando ? (
+          <div className="mt-4 max-w-md">
+            <TrocarPlanoPagamento
+              token={token ?? ""}
+              planoId={novoPlanoId}
+              nomePlano={planoEscolhido?.nome ?? novoPlanoId}
+              periodicidade={novaPeriodicidade}
+              onCancelar={() => setTrocando(false)}
+              onConcluido={() => {
+                setTrocando(false);
+                carregar();
+              }}
+            />
+          </div>
+        ) : (
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+            <Select
+              label="Novo plano"
+              containerClassName="flex-1"
+              value={novoPlanoId}
+              onChange={(e) => setNovoPlanoId(e.target.value)}
+            >
+              {planos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label="Periodicidade"
+              containerClassName="sm:w-48"
+              value={novaPeriodicidade}
+              onChange={(e) => setNovaPeriodicidade(e.target.value as Periodicidade)}
+            >
+              <option value="mensal">Mensal</option>
+              <option value="trimestral">Trimestral</option>
+              <option value="anual">Anual</option>
+            </Select>
+            <Button onClick={() => setTrocando(true)} disabled={!novoPlanoId || novoPlanoId === planoId}>
+              Continuar para pagamento
+            </Button>
+          </div>
+        )}
+        {!trocando && novoPlanoId === planoId && (
+          <p className="mt-2 text-xs text-ink-400">Esse já é o seu plano atual — escolha outro pra trocar.</p>
+        )}
       </div>
 
       <div className="mt-6">

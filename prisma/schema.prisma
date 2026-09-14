@@ -226,6 +226,7 @@ model Company {
   prospect     Prospect?
   ads          Ad[]
   boosts       Boost[]
+  subscriptionChanges SubscriptionChange[]
   favoritedBy  Favorite[]
   cashbackTransactions CashbackTransaction[]
 
@@ -543,6 +544,27 @@ model PlanPurchase {
   updatedAt     DateTime    @updatedAt
 
   @@index([email])
+}
+
+// Troca de plano (upgrade/downgrade) feita por uma empresa que JÁ tem
+// conta, direto no Painel (Assinatura ou Financeiro → "Trocar plano") — ao
+// contrário do PlanPurchase (que é pra quem ainda nem tem conta, comprando
+// pela página pública "Para empresas"). Mesmo Payment Brick embutido
+// (Pix/cartão); quando aprovado, atualiza a `Subscription` da empresa e
+// grava um `Payment` no histórico — ver src/lib/subscriptionChangePayment.ts.
+model SubscriptionChange {
+  id            String      @id @default(cuid())
+  companyId     String
+  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  planoId       PlanoId
+  periodicidade SubscriptionPeriod
+  valor         Decimal     @db.Decimal(10, 2)
+  status        BoostStatus @default(pendente)
+  mpPaymentId   String?     @unique
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([companyId])
 }
 
 // Linha única de configurações gerais da plataforma (Admin → Configurações).

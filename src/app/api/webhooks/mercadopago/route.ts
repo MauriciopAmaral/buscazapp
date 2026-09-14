@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { mpConfigured, mpPaymentClient } from "@/lib/mercadopago";
 import { aplicarStatusPagamento } from "@/lib/boostPayment";
 import { aplicarStatusPagamentoPlano } from "@/lib/planPurchasePayment";
+import { aplicarStatusPagamentoMudancaPlano } from "@/lib/subscriptionChangePayment";
 
 // POST /api/webhooks/mercadopago — o Mercado Pago chama essa rota sozinho
 // (sem token de usuário nenhum) toda vez que o status de um pagamento
@@ -49,10 +50,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // O `external_reference` pode ser de um Impulsionamento (Boost) OU de
+    // O `external_reference` pode ser de um Impulsionamento (Boost), de
     // uma compra de plano (PlanPurchase, pago na página pública "Para
-    // empresas" → Planos) — os dois usam essa mesma URL de webhook. Tenta
-    // achar em qualquer uma das duas tabelas.
+    // empresas" → Planos) ou de uma troca de plano de uma empresa que já
+    // tem conta (SubscriptionChange, Painel → Assinatura/Financeiro) — os
+    // três usam essa mesma URL de webhook. Tenta achar em qualquer uma das
+    // três tabelas.
     const boost = await prisma.boost.findUnique({ where: { id: externalReference } });
     if (boost) {
       // aplicarStatusPagamento já é idempotente (não faz nada se o Boost já
@@ -68,7 +71,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    console.error("[webhook mercadopago] nenhum Boost/PlanPurchase encontrado", externalReference);
+    const change = await prisma.subscriptionChange.findUnique({ where: { id: externalReference } });
+    if (change) {
+      await aplicarStatusPagamentoMudancaPlano(change, payment);
+      return NextResponse.json({ ok: true });
+    }
+
+    console.error("[webhook mercadopago] nenhum Boost/PlanPurchase/SubscriptionChange encontrado", externalReference);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[POST /api/webhooks/mercadopago]", err);
