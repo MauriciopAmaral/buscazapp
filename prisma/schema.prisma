@@ -597,7 +597,7 @@ model PlatformSettings {
   // Texto livre que aparece no rodapé, depois de "© {ano} {nome da
   // plataforma}." (o ano e o nome são sempre calculados na hora, pra nunca
   // ficar desatualizado).
-  rodapeTexto                   String   @default("Protótipo com dados fictícios — nenhuma informação aqui é real.")
+  rodapeTexto                   String   @default("Todos os direitos reservados.")
 
   updatedAt                     DateTime @updatedAt
 }

@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Utensils, Ticket, CheckCircle2, Sparkles } from "lucide-react";
+import { Utensils, Ticket, Sparkles } from "lucide-react";
 import { CompanyCard } from "@/components/domain";
-import { Badge, Button, EmptyState, LoadingState } from "@/components/ui";
-import { useAuth } from "@/context/AuthContext";
+import { Badge, EmptyState, LoadingState } from "@/components/ui";
 import { Company } from "@/types";
 
 const beneficios = [
@@ -27,10 +26,8 @@ const beneficios = [
 ];
 
 export default function ClubePage() {
-  const { user, loginAs } = useAuth();
   const [partners, setPartners] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
-  const isAssinante = !!user && (user.clubeAssinante ?? false);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,16 +57,12 @@ export default function ClubePage() {
           </h1>
           <p className="mt-3 max-w-xl text-sm text-ink-600 sm:text-base">
             Assine o Clube e desbloqueie cupons exclusivos de 2x1 e descontos em restaurantes e pizzarias
-            parceiros — sem taxa de adesão neste protótipo.
+            parceiros.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            {isAssinante ? (
-              <Badge variant="success" icon={<CheckCircle2 size={14} />} className="px-4 py-2 text-sm">
-                Você já é assinante do Clube
-              </Badge>
-            ) : (
-              <Button onClick={() => loginAs("consumidor")}>Quero assinar o Clube</Button>
-            )}
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <Badge variant="warning" className="px-4 py-2 text-sm">
+              Assinatura do Clube em breve
+            </Badge>
             <Link href="/buscar?categoria=restaurantes" className="self-center text-sm font-medium text-brand-700 hover:underline">
               Ver todos os restaurantes
             </Link>
@@ -111,9 +104,8 @@ export default function ClubePage() {
         </div>
 
         <p className="mt-10 text-xs text-ink-400">
-          O BuscaZapp Clube é um protótipo: hoje a assinatura é simulada (login de demonstração) e os
-          cupons 2x1 não envolvem cobrança real. Quando o backend entrar em produção, a assinatura passa
-          a ter cobrança recorrente de verdade.
+          A assinatura recorrente do Clube ainda está em preparação — em breve será possível assinar
+          diretamente por aqui.
         </p>
       </div>
     </div>

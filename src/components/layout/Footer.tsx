@@ -41,7 +41,7 @@ interface FooterProps {
 export function Footer({
   siteName = "BuscaZapp",
   logoUrl,
-  rodapeTexto = "Protótipo com dados fictícios — nenhuma informação aqui é real.",
+  rodapeTexto = "Todos os direitos reservados.",
 }: FooterProps) {
   return (
     <footer className="border-t border-ink-200 bg-white">

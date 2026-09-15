@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ok, serverError } from "@/lib/apiResponse";
-import { companyListInclude, mapCompany } from "@/lib/companyData";
+import { companyListInclude, getPromoECupomCompanyIds, mapCompany } from "@/lib/companyData";
 import { getActiveAdCompanyIdsByTipo } from "@/lib/adBoosts";
 
 // GET /api/companies?q=&cidade=&categoria=&avaliacaoMinima=&ordenarPor=&page=&pageSize=
@@ -73,10 +73,13 @@ export async function GET(request: NextRequest) {
     const total = idsOrdenados.length;
     const idsDaPagina = idsOrdenados.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
 
-    const rows = await prisma.company.findMany({
-      where: { id: { in: idsDaPagina } },
-      include: companyListInclude,
-    });
+    const [rows, { promoIds, cupomIds }] = await Promise.all([
+      prisma.company.findMany({
+        where: { id: { in: idsDaPagina } },
+        include: companyListInclude,
+      }),
+      getPromoECupomCompanyIds(),
+    ]);
     // findMany com `id: { in }` não garante a ordem — reordena pra bater com idsDaPagina.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const porId = new Map((rows as any[]).map((c) => [c.id as string, c]));
@@ -93,6 +96,8 @@ export async function GET(request: NextRequest) {
       empresas: companies.map((c) => ({
         ...mapCompany(c),
         patrocinada: c.patrocinada || impulsionadasPorTipo.resultado_patrocinado.has(c.id),
+        temPromocaoAtiva: promoIds.has(c.id),
+        temCupomAtivo: cupomIds.has(c.id),
       })),
     });
   } catch (err) {

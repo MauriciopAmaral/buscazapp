@@ -62,7 +62,7 @@ export function CouponCard({ coupon }: { coupon: Coupon }) {
             {copied ? "Copiado!" : "Copiar código"}
           </Button>
           <p className="text-xs text-ink-400">
-            Apresente este código ou QR Code fictício no estabelecimento para resgatar sua oferta.
+            Apresente este código no estabelecimento para resgatar sua oferta.
           </p>
         </div>
       </Modal>

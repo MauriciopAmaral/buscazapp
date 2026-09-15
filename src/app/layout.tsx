@@ -10,7 +10,7 @@ import { paletaCssVars } from "@/lib/palettes";
 export const metadata: Metadata = {
   title: "BuscaZapp — Encontre. Chame. Economize.",
   description:
-    "BuscaZapp é a plataforma nacional para encontrar empresas, profissionais, serviços, promoções e cupons perto de você. Protótipo com dados fictícios.",
+    "BuscaZapp é a plataforma para encontrar empresas, profissionais, serviços, promoções e cupons perto de você.",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

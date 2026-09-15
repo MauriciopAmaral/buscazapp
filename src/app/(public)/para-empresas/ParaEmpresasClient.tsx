@@ -3,12 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   MessageCircle, Search, Rocket, CheckCircle2, Star, TrendingUp, Users, MapPinned,
-  Building2, ChevronDown, Quote,
+  Building2, ChevronDown,
 } from "lucide-react";
 import { LinkButton, Select, Badge } from "@/components/ui";
-import { companies, cidadesPara } from "@/mocks/companies";
-import { categories } from "@/mocks/categories";
-import { companyAnalytics } from "@/mocks/analytics";
 import { formatCurrency, cn } from "@/lib/utils";
 
 interface PlanoReal {
@@ -17,6 +14,20 @@ interface PlanoReal {
   precoMensal: number;
   destaque: boolean;
   recursos: string[];
+}
+
+interface CategoriaReal {
+  id: string;
+  slug: string;
+  nome: string;
+}
+
+interface StatsReais {
+  empresas: number;
+  cidades: number;
+  cidadesNomes: string[];
+  avaliacaoMedia: number;
+  cliquesWhatsappMes: number;
 }
 
 function seeded(seed: number) {
@@ -42,29 +53,6 @@ const passos = [
   },
 ];
 
-const depoimentos = [
-  {
-    nome: "Marcos Titan",
-    empresa: "Pizzaria Titan",
-    cidade: "Belém",
-    texto:
-      "Desde que reivindiquei o perfil, os pedidos pelo WhatsApp praticamente dobraram. O selo Premium ajudou muito a aparecer primeiro na busca.",
-  },
-  {
-    nome: "Dona da Barbearia Trato Fino",
-    empresa: "Barbearia Trato Fino",
-    cidade: "Belém",
-    texto:
-      "Os cupons ativos trazem cliente novo toda semana. E dá pra ver exatamente quantas pessoas clicaram no WhatsApp direto pelo painel.",
-  },
-  {
-    nome: "Studio Beleza & Cia",
-    empresa: "Studio Beleza & Cia",
-    cidade: "Belém",
-    texto:
-      "Reivindicar foi rápido e o painel é simples — em uma tarde já tinha fotos, horário e promoção no ar.",
-  },
-];
 
 const faqs = [
   {
@@ -89,10 +77,12 @@ const faqs = [
 ];
 
 export function ParaEmpresasClient() {
-  const [cidade, setCidade] = useState(cidadesPara[0]);
-  const [categoriaSlug, setCategoriaSlug] = useState(categories[0]?.slug ?? "");
   const [faqAberto, setFaqAberto] = useState<number | null>(0);
   const [planos, setPlanos] = useState<PlanoReal[]>([]);
+  const [categories, setCategories] = useState<CategoriaReal[]>([]);
+  const [statsReais, setStatsReais] = useState<StatsReais | null>(null);
+  const [cidade, setCidade] = useState("");
+  const [categoriaSlug, setCategoriaSlug] = useState("");
 
   useEffect(() => {
     fetch("/api/planos")
@@ -101,19 +91,33 @@ export function ParaEmpresasClient() {
         if (json?.success) setPlanos(json.data);
       })
       .catch(() => undefined);
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((json) => {
+        if (json?.success) {
+          setCategories(json.data);
+          setCategoriaSlug((atual) => atual || json.data[0]?.slug || "");
+        }
+      })
+      .catch(() => undefined);
+    fetch("/api/public-stats")
+      .then((r) => r.json())
+      .then((json) => {
+        if (json?.success) {
+          setStatsReais(json.data);
+          setCidade((atual) => atual || json.data.cidadesNomes[0] || "");
+        }
+      })
+      .catch(() => undefined);
   }, []);
 
-  const totalEmpresas = companies.length;
-  const totalCliques = companyAnalytics.reduce((sum, a) => sum + a.cliquesWhatsapp, 0);
-  const totalCidades = cidadesPara.length;
-  const avaliacaoMedia =
-    companies.reduce((sum, c) => sum + c.avaliacaoMedia, 0) / (companies.length || 1);
+  const cidadesPara = useMemo(() => statsReais?.cidadesNomes ?? [], [statsReais]);
 
   const stats = [
-    { icon: <Building2 size={18} />, label: "Empresas na plataforma", value: `${totalEmpresas}+` },
-    { icon: <MessageCircle size={18} />, label: "Cliques no WhatsApp/mês", value: `${totalCliques.toLocaleString("pt-BR")}+` },
-    { icon: <MapPinned size={18} />, label: "Cidades atendidas", value: `${totalCidades}` },
-    { icon: <Star size={18} />, label: "Avaliação média", value: avaliacaoMedia.toFixed(1) },
+    { icon: <Building2 size={18} />, label: "Empresas na plataforma", value: `${statsReais?.empresas ?? 0}+` },
+    { icon: <MessageCircle size={18} />, label: "Cliques no WhatsApp/mês", value: `${(statsReais?.cliquesWhatsappMes ?? 0).toLocaleString("pt-BR")}+` },
+    { icon: <MapPinned size={18} />, label: "Cidades atendidas", value: `${statsReais?.cidades ?? 0}` },
+    { icon: <Star size={18} />, label: "Avaliação média", value: (statsReais?.avaliacaoMedia ?? 0).toFixed(1) },
   ];
 
   const simulacao = useMemo(() => {
@@ -123,7 +127,7 @@ export function ParaEmpresasClient() {
     const buscasMes = Math.round(800 + seeded(seed) * 4200);
     const cliquesEstimados = Math.round(buscasMes * (0.05 + seeded(seed + 1) * 0.07));
     return { buscasMes, cliquesEstimados };
-  }, [cidade, categoriaSlug]);
+  }, [cidade, categoriaSlug, cidadesPara, categories]);
 
   return (
     <div>
@@ -196,8 +200,8 @@ export function ParaEmpresasClient() {
             Veja quantos clientes você pode alcançar
           </h2>
           <p className="mt-1 max-w-xl text-sm text-ink-500">
-            Estimativa com base no volume de buscas na sua cidade e categoria — os mesmos dados que
-            alimentam as estatísticas do painel.
+            Uma estimativa aproximada com base na sua cidade e categoria, só pra ter uma ideia do
+            potencial de alcance.
           </p>
 
           <div className="mt-5 grid grid-cols-1 gap-4 rounded-2xl border border-ink-200 bg-white p-5 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
@@ -227,7 +231,8 @@ export function ParaEmpresasClient() {
             </div>
           </div>
           <p className="mt-2 text-xs text-ink-400">
-            Estimativa ilustrativa do protótipo — os números reais aparecem no seu painel depois do cadastro.
+            Estimativa ilustrativa, não uma medição real de buscas — os números do seu negócio aparecem
+            de verdade no painel depois do cadastro.
           </p>
         </div>
       </div>
@@ -273,30 +278,6 @@ export function ParaEmpresasClient() {
               </LinkButton>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* Depoimentos */}
-      <div className="bg-ink-50/60">
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-          <h2 className="text-lg font-bold text-ink-900 sm:text-2xl">Quem já usa recomenda</h2>
-          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {depoimentos.map((d) => (
-              <div key={d.nome} className="flex flex-col gap-3 rounded-2xl border border-ink-200 bg-white p-5">
-                <Quote size={20} className="text-brand-300" />
-                <p className="flex-1 text-sm text-ink-700">“{d.texto}”</p>
-                <div>
-                  <p className="text-sm font-semibold text-ink-900">{d.nome}</p>
-                  <p className="text-xs text-ink-500">
-                    {d.empresa} · {d.cidade}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="mt-3 text-xs text-ink-400">
-            Depoimentos ilustrativos com base em empresas fictícias do protótipo.
-          </p>
         </div>
       </div>
 

@@ -9,8 +9,6 @@ import { cn, isCompanyOpenNow, whatsappLink } from "@/lib/utils";
 import { useFavorites } from "@/context/FavoritesContext";
 import { useGeo } from "@/context/GeoContext";
 import { distanceKm, formatDistance } from "@/lib/geo";
-import { promotions } from "@/mocks/promotions";
-import { coupons } from "@/mocks/coupons";
 
 interface CompanyCardProps {
   company: Company;
@@ -22,8 +20,8 @@ export function CompanyCard({ company, className }: CompanyCardProps) {
   const { coords } = useGeo();
   const aberto = isCompanyOpenNow(company.horarios);
   const favorito = isFavorite(company.id);
-  const temPromocao = promotions.some((p) => p.companyId === company.id && p.status === "ativa");
-  const temCupom = coupons.some((c) => c.companyId === company.id && c.status === "ativo");
+  const temPromocao = company.temPromocaoAtiva ?? false;
+  const temCupom = company.temCupomAtivo ?? false;
   const distancia = coords
     ? distanceKm(coords, { lat: company.endereco.latitude, lng: company.endereco.longitude })
     : null;

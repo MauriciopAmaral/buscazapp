@@ -2,15 +2,15 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { Mail, Lock, User2, Building2, ShieldCheck } from "lucide-react";
+import { Mail, Lock, User2 } from "lucide-react";
 import { Button, Input, LinkButton } from "@/components/ui";
 import { useAuth } from "@/context/AuthContext";
-import { cn, dashboardHrefForRole } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export function CadastroClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { register, loginAs } = useAuth();
+  const { register } = useAuth();
   const planoToken = searchParams.get("planoToken") ?? "";
   const [tipo, setTipo] = useState<"consumidor" | "empresa">(
     planoToken || searchParams.get("tipo") === "empresa" ? "empresa" : "consumidor"
@@ -21,18 +21,6 @@ export function CadastroClient() {
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
-
-  const devLogin = async (role: "consumidor" | "empresa" | "admin") => {
-    setErro(null);
-    setCarregando(true);
-    const result = await loginAs(role);
-    setCarregando(false);
-    if (!result.ok) {
-      setErro(result.error);
-      return;
-    }
-    router.push(dashboardHrefForRole(role));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,41 +110,6 @@ export function CadastroClient() {
           {carregando ? "Criando conta..." : tipo === "empresa" ? "Criar conta e cadastrar empresa" : "Criar conta"}
         </Button>
       </form>
-
-      <div className="mt-10 w-full rounded-2xl border border-dashed border-ink-300 bg-ink-50/60 p-4">
-        <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-ink-500">
-          Atalhos de desenvolvimento — protótipo
-        </p>
-        <div className="flex flex-col gap-2">
-          <Button
-            variant="outline"
-            fullWidth
-            icon={<User2 size={16} />}
-            disabled={carregando}
-            onClick={() => devLogin("consumidor")}
-          >
-            Entrar como consumidor
-          </Button>
-          <Button
-            variant="outline"
-            fullWidth
-            icon={<Building2 size={16} />}
-            disabled={carregando}
-            onClick={() => devLogin("empresa")}
-          >
-            Entrar como empresa
-          </Button>
-          <Button
-            variant="outline"
-            fullWidth
-            icon={<ShieldCheck size={16} />}
-            disabled={carregando}
-            onClick={() => devLogin("admin")}
-          >
-            Entrar como administrador
-          </Button>
-        </div>
-      </div>
 
       <LinkButton href="/" variant="ghost" size="sm" className="mt-4">
         Voltar para a Home

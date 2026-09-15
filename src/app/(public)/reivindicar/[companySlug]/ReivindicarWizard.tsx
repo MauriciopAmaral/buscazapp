@@ -197,8 +197,9 @@ export function ReivindicarWizard({ company }: { company: Company }) {
           <form onSubmit={confirmarCodigoEEnviar}>
             <h2 className="text-lg font-bold text-ink-900">Digite o código recebido</h2>
             <p className="mt-1 text-sm text-ink-500">
-              Enviamos um código fictício de 6 dígitos (o envio de SMS/e-mail de verdade ainda não existe neste
-              protótipo). Use <strong>123456</strong>.
+              Essa etapa de validação por código ainda está em preparação — por enquanto, digite
+              qualquer código de 6 dígitos pra continuar. Sua solicitação é registrada de verdade e
+              revisada manualmente pela nossa equipe antes de liberar o acesso.
             </p>
             <Input
               label="Código de verificação"

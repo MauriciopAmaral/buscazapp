@@ -15,6 +15,29 @@ function comImpulsionadosNaFrente(empresas: Company[], impulsionados: Set<string
   return [...empresas].sort((a, b) => Number(impulsionados.has(b.id)) - Number(impulsionados.has(a.id)));
 }
 
+/** IDs de empresas com promoção/cupom ativos agora — pra ligar os badges "Promoção"/"Cupom" do CompanyCard com dado real. */
+export async function getPromoECupomCompanyIds(): Promise<{ promoIds: Set<string>; cupomIds: Set<string> }> {
+  const [promos, cupons] = await Promise.all([
+    prisma.promotion.findMany({ where: { status: "ativa" }, select: { companyId: true }, distinct: ["companyId"] }),
+    prisma.coupon.findMany({ where: { status: "ativo" }, select: { companyId: true }, distinct: ["companyId"] }),
+  ]);
+  return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tipos reais do Prisma só existem depois de `prisma generate`, que este sandbox não consegue rodar (ver AGENTS.md / HOSTINGER_MYSQL_SETUP.md); na Vercel o build gera o client normalmente.
+    promoIds: new Set((promos as any[]).map((p) => p.companyId as string)),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    cupomIds: new Set((cupons as any[]).map((c) => c.companyId as string)),
+  };
+}
+
+function comFlagsDePromoECupom(empresas: Company[], promoIds: Set<string>, cupomIds: Set<string>): Company[] {
+  if (promoIds.size === 0 && cupomIds.size === 0) return empresas;
+  return empresas.map((c) => ({
+    ...c,
+    temPromocaoAtiva: promoIds.has(c.id),
+    temCupomAtivo: cupomIds.has(c.id),
+  }));
+}
+
 // -------------------- Empresa --------------------
 
 export const companyListInclude = { categoria: true, horarios: true } as const;
@@ -78,7 +101,10 @@ export function mapCompany(c: any, galeria: string[] = []): Company {
 export async function getCompanies(take?: number): Promise<Company[]> {
   // Usada na home como "Empresas perto de você" — conta tanto o impulsionamento
   // "Resultado patrocinado" (geral) quanto "Destaque na cidade".
-  const impulsionadas = await getActiveAdCompanyIdsByTipo(["resultado_patrocinado", "destaque_cidade"]);
+  const [impulsionadas, { promoIds, cupomIds }] = await Promise.all([
+    getActiveAdCompanyIdsByTipo(["resultado_patrocinado", "destaque_cidade"]),
+    getPromoECupomCompanyIds(),
+  ]);
   const boostIds = new Set([...impulsionadas.resultado_patrocinado, ...impulsionadas.destaque_cidade]);
 
   const rows = await prisma.company.findMany({
@@ -91,54 +117,70 @@ export async function getCompanies(take?: number): Promise<Company[]> {
     // já que o corte aconteceria ANTES dela ser colocada na frente.
     ...(take && boostIds.size === 0 ? { take } : {}),
   });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tipos reais do Prisma só existem depois de `prisma generate`, que este sandbox não consegue rodar (ver AGENTS.md / HOSTINGER_MYSQL_SETUP.md); na Vercel o build gera o client normalmente.
-  const empresas: Company[] = (rows as any[]).map((c) => ({
-    ...mapCompany(c),
-    patrocinada: c.patrocinada || impulsionadas.resultado_patrocinado.has(c.id),
-  }));
+  const empresas: Company[] = comFlagsDePromoECupom(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tipos reais do Prisma só existem depois de `prisma generate`, que este sandbox não consegue rodar (ver AGENTS.md / HOSTINGER_MYSQL_SETUP.md); na Vercel o build gera o client normalmente.
+    (rows as any[]).map((c) => ({
+      ...mapCompany(c),
+      patrocinada: c.patrocinada || impulsionadas.resultado_patrocinado.has(c.id),
+    })),
+    promoIds,
+    cupomIds
+  );
   const ordenadas = comImpulsionadosNaFrente(empresas, boostIds);
   return take ? ordenadas.slice(0, take) : ordenadas;
 }
 
 export async function getCompaniesByCategorySlug(categoriaSlug: string): Promise<Company[]> {
-  const impulsionadas = await getActiveAdCompanyIds("destaque_categoria");
+  const [impulsionadas, { promoIds, cupomIds }] = await Promise.all([
+    getActiveAdCompanyIds("destaque_categoria"),
+    getPromoECupomCompanyIds(),
+  ]);
   const rows = await prisma.company.findMany({
     where: { status: "ativo", categoria: { slug: categoriaSlug } },
     orderBy: [{ patrocinada: "desc" }, { verificado: "desc" }],
     include: companyListInclude,
   });
-  const empresas = rows.map((c) => mapCompany(c));
+  const empresas = comFlagsDePromoECupom(rows.map((c) => mapCompany(c)), promoIds, cupomIds);
   return comImpulsionadosNaFrente(empresas, impulsionadas);
 }
 
 export async function getFeaturedCompanies(take = 6): Promise<Company[]> {
-  const impulsionadas = await getActiveAdCompanyIds("destaque_home");
+  const [impulsionadas, { promoIds, cupomIds }] = await Promise.all([
+    getActiveAdCompanyIds("destaque_home"),
+    getPromoECupomCompanyIds(),
+  ]);
   const rows = await prisma.company.findMany({
     where: { status: "ativo", OR: [{ premium: true }, { id: { in: Array.from(impulsionadas) } }] },
     orderBy: [{ patrocinada: "desc" }, { avaliacaoMedia: "desc" }],
     include: companyListInclude,
     ...(impulsionadas.size ? {} : { take }),
   });
-  const empresas = rows.map((c) => mapCompany(c));
+  const empresas = comFlagsDePromoECupom(rows.map((c) => mapCompany(c)), promoIds, cupomIds);
   return comImpulsionadosNaFrente(empresas, impulsionadas).slice(0, take);
 }
 
 export async function getClubPartnerCompanies(): Promise<Company[]> {
-  const rows = await prisma.company.findMany({
-    where: { status: "ativo", clubeParceiro: true },
-    orderBy: [{ patrocinada: "desc" }, { avaliacaoMedia: "desc" }],
-    include: companyListInclude,
-  });
-  return rows.map((c) => mapCompany(c));
+  const [rows, { promoIds, cupomIds }] = await Promise.all([
+    prisma.company.findMany({
+      where: { status: "ativo", clubeParceiro: true },
+      orderBy: [{ patrocinada: "desc" }, { avaliacaoMedia: "desc" }],
+      include: companyListInclude,
+    }),
+    getPromoECupomCompanyIds(),
+  ]);
+  return comFlagsDePromoECupom(rows.map((c) => mapCompany(c)), promoIds, cupomIds);
 }
 
 export async function getCompaniesByIds(ids: string[]): Promise<Company[]> {
   if (ids.length === 0) return [];
-  const rows = await prisma.company.findMany({
-    where: { id: { in: ids } },
-    include: companyListInclude,
-  });
-  return rows.map((c) => mapCompany(c));
+  const [rows, { promoIds, cupomIds }] = await Promise.all([
+    prisma.company.findMany({
+      where: { id: { in: ids } },
+      include: companyListInclude,
+    }),
+    getPromoECupomCompanyIds(),
+  ]);
+  return comFlagsDePromoECupom(rows.map((c) => mapCompany(c)), promoIds, cupomIds);
 }
 
 export interface CompanyDetail extends Company {

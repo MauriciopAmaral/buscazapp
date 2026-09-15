@@ -61,8 +61,8 @@ export default function CashbackPage() {
         <p className="text-xs font-medium text-emerald-700">Saldo disponível</p>
         <p className="mt-1 text-3xl font-bold text-emerald-800">R$ {saldo.toFixed(2)}</p>
         <p className="mt-2 text-xs text-emerald-700">
-          Use o saldo em compras futuras nas empresas participantes do programa. Este protótipo ainda
-          não processa resgates de verdade — isso passa a funcionar quando o backend estiver no ar.
+          Use o saldo em compras futuras nas empresas participantes do programa, informando seu
+          cadastro no momento da compra.
         </p>
       </div>
 

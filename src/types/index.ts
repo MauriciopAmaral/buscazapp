@@ -160,6 +160,10 @@ export interface Company {
   clubeParceiro?: boolean;
   /** % de cashback que o cliente recebe de volta ao comprar nesta empresa (0 = sem cashback). */
   cashbackPercentual?: number;
+  /** Tem ao menos uma promoção com status "ativa" agora — usado pro badge "Promoção" no card. */
+  temPromocaoAtiva?: boolean;
+  /** Tem ao menos um cupom com status "ativo" agora — usado pro badge "Cupom" no card. */
+  temCupomAtivo?: boolean;
 }
 
 export type UserRole = "consumidor" | "empresa" | "admin";
