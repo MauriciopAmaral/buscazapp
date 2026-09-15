@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Globe, Bell, Shield, Check, Palette, LayoutGrid, PenLine, Trash2 } from "lucide-react";
+import { Globe, Bell, Shield, Check, Palette, LayoutGrid, PenLine, Trash2, Utensils } from "lucide-react";
 import { Input, Textarea, Button, LoadingState } from "@/components/ui";
 import { ImageUploadField } from "@/components/painel/ImageUploadField";
 import { useAuth } from "@/context/AuthContext";
@@ -23,6 +23,7 @@ interface Settings {
   mostrarCupons: boolean;
   mostrarEmpresasDestaque: boolean;
   rodapeTexto: string;
+  clubeValorMensal: number;
 }
 
 const MODULOS_HOME: { key: keyof Settings; label: string }[] = [
@@ -200,6 +201,25 @@ export default function AdminConfiguracoesPage() {
           rows={2}
           value={settings.rodapeTexto}
           onChange={(e) => setSettings({ ...settings, rodapeTexto: e.target.value })}
+        />
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-ink-200 bg-white p-5">
+        <div className="flex items-center gap-2 text-sm font-semibold text-ink-900">
+          <Utensils size={16} /> BuscaZapp Clube
+        </div>
+        <p className="mt-1 text-xs text-ink-500">
+          Valor mensal cobrado do consumidor final pra assinar o Clube (cupons exclusivos de 2x1 nos restaurantes
+          parceiros).
+        </p>
+        <Input
+          className="mt-2 max-w-[160px]"
+          label="Valor mensal (R$)"
+          type="number"
+          step="0.01"
+          min={0}
+          value={settings.clubeValorMensal}
+          onChange={(e) => setSettings({ ...settings, clubeValorMensal: Number(e.target.value) })}
         />
       </section>
 

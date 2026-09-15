@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Utensils, Ticket, Sparkles } from "lucide-react";
+import { Utensils, Ticket, Sparkles, CheckCircle2, Calendar } from "lucide-react";
 import { CompanyCard } from "@/components/domain";
-import { Badge, EmptyState, LoadingState } from "@/components/ui";
+import { Badge, Button, EmptyState, LoadingState, LinkButton } from "@/components/ui";
+import { AssinarClubePagamento } from "@/components/painel/AssinarClubePagamento";
+import { useAuth } from "@/context/AuthContext";
 import { Company } from "@/types";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 const beneficios = [
   {
@@ -25,9 +28,30 @@ const beneficios = [
   },
 ];
 
+interface AssinaturaClube {
+  status: "ativa" | "cancelada" | "atrasada";
+  valor: number;
+  proximaCobranca: string;
+}
+
 export default function ClubePage() {
+  const { user, token } = useAuth();
   const [partners, setPartners] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [valorMensal, setValorMensal] = useState(0);
+  const [assinatura, setAssinatura] = useState<AssinaturaClube | null>(null);
+  const [assinando, setAssinando] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
+
+  const carregarAssinatura = useCallback(() => {
+    if (!token) return;
+    fetch("/api/clube/assinatura", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json?.success) setAssinatura(json.data.subscription);
+      })
+      .catch(() => undefined);
+  }, [token]);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,10 +64,39 @@ export default function ClubePage() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    fetch("/api/clube/plano")
+      .then((r) => r.json())
+      .then((json) => {
+        if (!cancelled && json?.success) setValorMensal(json.data.valorMensal);
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    carregarAssinatura();
+  }, [carregarAssinatura]);
+
+  const cancelarAssinatura = async () => {
+    if (!token) return;
+    if (!confirm("Quer mesmo cancelar sua assinatura do Clube? Você mantém acesso até o fim do período já pago.")) return;
+    setCancelando(true);
+    try {
+      const res = await fetch("/api/clube/assinatura/cancelar", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.success) carregarAssinatura();
+      else alert(json?.error?.message ?? "Não foi possível cancelar a assinatura.");
+    } finally {
+      setCancelando(false);
+    }
+  };
+
+  const assinanteAtivo = assinatura?.status === "ativa";
 
   return (
     <div>
@@ -57,15 +110,60 @@ export default function ClubePage() {
           </h1>
           <p className="mt-3 max-w-xl text-sm text-ink-600 sm:text-base">
             Assine o Clube e desbloqueie cupons exclusivos de 2x1 e descontos em restaurantes e pizzarias
-            parceiros.
+            parceiros{valorMensal > 0 ? ` por apenas ${formatCurrency(valorMensal)}/mês` : ""}.
           </p>
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <Badge variant="warning" className="px-4 py-2 text-sm">
-              Assinatura do Clube em breve
-            </Badge>
-            <Link href="/buscar?categoria=restaurantes" className="self-center text-sm font-medium text-brand-700 hover:underline">
-              Ver todos os restaurantes
-            </Link>
+
+          <div className="mt-6 max-w-sm">
+            {!user ? (
+              <div className="flex flex-wrap gap-3">
+                <LinkButton href="/login">Entrar pra assinar</LinkButton>
+                <Link
+                  href="/buscar?categoria=restaurantes"
+                  className="self-center text-sm font-medium text-brand-700 hover:underline"
+                >
+                  Ver todos os restaurantes
+                </Link>
+              </div>
+            ) : assinanteAtivo ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <div className="flex items-center gap-2 text-emerald-700">
+                  <CheckCircle2 size={16} />
+                  <span className="text-sm font-semibold">Você é assinante do Clube</span>
+                </div>
+                <p className="mt-1 flex items-center gap-1.5 text-xs text-emerald-700">
+                  <Calendar size={13} /> Próxima cobrança em {formatDate(assinatura!.proximaCobranca)}
+                </p>
+                <button
+                  type="button"
+                  onClick={cancelarAssinatura}
+                  disabled={cancelando}
+                  className="mt-2 text-xs font-medium text-ink-500 underline hover:text-ink-700 disabled:opacity-50"
+                >
+                  {cancelando ? "Cancelando..." : "Cancelar assinatura"}
+                </button>
+              </div>
+            ) : assinando ? (
+              <AssinarClubePagamento
+                token={token ?? ""}
+                onCancelar={() => setAssinando(false)}
+                onConcluido={() => {
+                  setAssinando(false);
+                  carregarAssinatura();
+                }}
+              />
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <Button onClick={() => setAssinando(true)}>
+                  {valorMensal > 0 ? `Assinar por ${formatCurrency(valorMensal)}/mês` : "Quero assinar o Clube"}
+                </Button>
+                <Link
+                  href="/buscar?categoria=restaurantes"
+                  className="self-center text-sm font-medium text-brand-700 hover:underline"
+                >
+                  Ver todos os restaurantes
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -102,11 +200,6 @@ export default function ClubePage() {
             )}
           </div>
         </div>
-
-        <p className="mt-10 text-xs text-ink-400">
-          A assinatura recorrente do Clube ainda está em preparação — em breve será possível assinar
-          diretamente por aqui.
-        </p>
       </div>
     </div>
   );

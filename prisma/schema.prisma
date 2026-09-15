@@ -128,6 +128,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   cashbackTransactions CashbackTransaction[]
   clubeAssinante Boolean @default(false)
+  clubSubscription ClubSubscription?
+  clubPurchases    ClubPurchase[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -573,6 +575,43 @@ model SubscriptionChange {
   @@index([companyId])
 }
 
+// Assinatura ativa do BuscaZapp Clube (consumidor final, tipo "compre 1
+// leve 2" em restaurantes parceiros) — uma por usuário. Mesmo espírito da
+// `Subscription` de empresa, só que sem plano/periodicidade (é um valor
+// fixo mensal só, vindo de `PlatformSettings.clubeValorMensal`). Renovação
+// é sempre manual (o cliente paga de novo pelo painel/e-mail de lembrete),
+// igual já acontece com as empresas — nem cartão nem Pix permitem cobrança
+// automática recorrente sem um contrato à parte com o Mercado Pago.
+model ClubSubscription {
+  id                String             @id @default(cuid())
+  userId            String             @unique
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status            SubscriptionStatus @default(ativa)
+  valor             Decimal            @db.Decimal(10, 2)
+  proximaCobranca   DateTime
+  lembreteEnviadoEm DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+// Cada tentativa de pagamento da assinatura do Clube (a primeira ou uma
+// renovação) — mesmo padrão do Boost/PlanPurchase/SubscriptionChange:
+// pendente até o Mercado Pago confirmar, self-healing por GET, webhook
+// compartilhado. As linhas com status "pago" também servem de histórico de
+// pagamentos do Clube (não precisa de tabela própria pra isso).
+model ClubPurchase {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  valor       Decimal     @db.Decimal(10, 2)
+  status      BoostStatus @default(pendente)
+  mpPaymentId String?     @unique
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([userId])
+}
+
 // Linha única de configurações gerais da plataforma (Admin → Configurações).
 // Sempre um único registro, com id fixo "singleton" — lido/gravado por
 // GET/PATCH em /api/admin/settings (e a parte pública em /api/settings).
@@ -598,6 +637,10 @@ model PlatformSettings {
   // plataforma}." (o ano e o nome são sempre calculados na hora, pra nunca
   // ficar desatualizado).
   rodapeTexto                   String   @default("Todos os direitos reservados.")
+
+  // Valor mensal fixo da assinatura do BuscaZapp Clube (consumidor final) —
+  // editável aqui, sem precisar mexer em código nem redeployar.
+  clubeValorMensal               Decimal  @default(19.90) @db.Decimal(10, 2)
 
   updatedAt                     DateTime @updatedAt
 }

@@ -81,6 +81,28 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       });
     }
 
+    if (id.startsWith("clube-")) {
+      const purchaseId = id.slice("clube-".length);
+      const existente = await prisma.clubPurchase.findUnique({ where: { id: purchaseId } });
+      if (!existente) return notFound("Assinatura do Clube não encontrada.");
+      const purchase = await prisma.clubPurchase.update({
+        where: { id: purchaseId },
+        data: { status: statusPaymentParaBoost(status) },
+        include: { user: { select: { nome: true, email: true } } },
+      });
+      return ok({
+        id: `clube-${purchase.id}`,
+        companyId: null,
+        companyNome: `${purchase.user.nome} (Clube)`,
+        companySlug: null,
+        companyWhatsapp: purchase.user.email,
+        descricao: "Assinatura — BuscaZapp Clube (mensal)",
+        data: purchase.createdAt.toISOString(),
+        valor: Number(purchase.valor),
+        status,
+      });
+    }
+
     const existente = await prisma.payment.findUnique({ where: { id } });
     if (!existente) return notFound("Pagamento não encontrado.");
 
@@ -128,6 +150,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       const existente = await prisma.planPurchase.findUnique({ where: { id: purchaseId } });
       if (!existente) return notFound("Compra de plano não encontrada.");
       await prisma.planPurchase.delete({ where: { id: purchaseId } });
+      return ok({ excluido: true });
+    }
+
+    if (id.startsWith("clube-")) {
+      const purchaseId = id.slice("clube-".length);
+      const existente = await prisma.clubPurchase.findUnique({ where: { id: purchaseId } });
+      if (!existente) return notFound("Assinatura do Clube não encontrada.");
+      await prisma.clubPurchase.delete({ where: { id: purchaseId } });
       return ok({ excluido: true });
     }
 

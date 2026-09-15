@@ -1,13 +1,14 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/apiAuth";
-import { badRequest, notFound, ok, serverError } from "@/lib/apiResponse";
+import { badRequest, notFound, ok, serverError, unauthorized } from "@/lib/apiResponse";
 
 // POST /api/coupons/[id]/redeem
 // Marca 1 uso do cupom e devolve o código. Também gera um Lead (origem
 // "cupom") pra aparecer nas estatísticas do painel da empresa.
-// Aceita usuário anônimo (mesmo comportamento de hoje no protótipo) —
-// se vier token, associa o resgate ao usuário nos logs.
+// Aceita usuário anônimo pra cupons comuns — se vier token, associa o
+// resgate ao usuário nos logs. Cupons marcados como `exclusivoClube` só
+// podem ser resgatados por quem tem assinatura ativa do BuscaZapp Clube.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -18,6 +19,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (coupon.status !== "ativo") return badRequest("Esse cupom não está mais disponível.");
     if (coupon.limite > 0 && coupon.utilizados >= coupon.limite) {
       return badRequest("Esse cupom já atingiu o limite de usos.");
+    }
+    if (coupon.exclusivoClube) {
+      if (!auth) return unauthorized("Esse cupom é exclusivo pra assinantes do BuscaZapp Clube — faça login.");
+      const user = await prisma.user.findUnique({ where: { id: auth.sub }, select: { clubeAssinante: true } });
+      if (!user?.clubeAssinante) {
+        return badRequest("Esse cupom é exclusivo pra assinantes do BuscaZapp Clube.");
+      }
     }
 
     const [updated] = await prisma.$transaction([

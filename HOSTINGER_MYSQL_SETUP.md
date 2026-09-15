@@ -705,13 +705,28 @@ Não precisa de `npx prisma db push` por causa desta atualização — só mudei
 
 Arquivos alterados: `src/app/(public)/cadastro/CadastroClient.tsx`, `src/app/(public)/clube/page.tsx`, `src/app/(public)/cashback/page.tsx`, `src/app/(public)/para-empresas/ParaEmpresasClient.tsx`, `src/app/(public)/reivindicar/ReivindicarClient.tsx`, `src/app/(public)/reivindicar/[companySlug]/page.tsx`, `src/app/(public)/reivindicar/[companySlug]/ReivindicarWizard.tsx`, `src/components/layout/Footer.tsx`, `src/components/domain/CompanyCard.tsx`, `src/components/domain/CouponCard.tsx`, `src/app/layout.tsx`, `src/lib/companyData.ts`, `src/types/index.ts`, `src/app/api/companies/route.ts`, `src/app/api/club/partners/route.ts`, `prisma/schema.prisma`. Novo: `src/app/api/public-stats/route.ts`.
 
+## Atualização: BuscaZapp Clube com assinatura de verdade (tipo Due Gourmet)
+
+O Clube (a página `/clube`, com os cupons "compre 1 leve 2" nos restaurantes parceiros) até aqui só mostrava um aviso "em breve". Agora tem assinatura paga de verdade, separada do que já existia pra empresas — decisões confirmadas com você antes de construir: valor mensal fixo (editável em **Admin → Configurações → BuscaZapp Clube**, começa em R$ 19,90 mas dá pra mudar sem mexer em código), parceiros continuam sendo marcados manualmente pelo Admin (nenhuma mudança aí), e o pagamento usa o mesmo Mercado Pago (cartão e Pix) já usado em todo o resto do site, com a mesma tela de verificação de ~10s pro cartão.
+
+Como funciona:
+- **`/clube`**: se a pessoa não estiver logada, mostra "Entrar pra assinar". Logada e sem assinatura, mostra o botão "Assinar por R$X/mês", que abre o pagamento embutido ali mesmo (mesmo Payment Brick de sempre). Já assinante, mostra um card com "Próxima cobrança em ..." e um link "Cancelar assinatura".
+- **Renovação é sempre manual** — nem cartão nem Pix permitem cobrança automática recorrente sem contrato à parte com o Mercado Pago, então funciona igual à assinatura das empresas: um lembrete por e-mail perto do vencimento (reaproveitei a mesma tarefa agendada diária que já existia, `vercel.json` → `/api/cron/lembretes-assinatura`, agora também verifica assinaturas do Clube), com um link direto pra `/clube` pra renovar.
+- **Cupom exclusivo do Clube agora é de verdade exclusivo**: antes, `POST /api/coupons/[id]/redeem` deixava qualquer pessoa (até anônima) resgatar um cupom marcado como "exclusivo Clube" — corrigido, agora exige login e assinatura ativa.
+- **Aparece no Financeiro do Admin**: cada assinatura/renovação do Clube entra na lista de pagamentos (Admin → Financeiro), com o nome da pessoa e "(Clube)" — e entra também no MRR total.
+- Manda e-mail de confirmação assim que o pagamento é aprovado (reaproveita o Resend já configurado).
+
+**Precisa rodar `npx prisma db push`** — entraram duas tabelas novas (`ClubSubscription`, `ClubPurchase`) e um campo novo em `PlatformSettings` (`clubeValorMensal`). **Rode antes do `git push`/deploy.** Não precisa de variável de ambiente nova (usa o Mercado Pago e o Resend já configurados).
+
+Arquivos novos: `src/lib/clubPayment.ts`, `src/app/api/clube/**`, `src/components/painel/AssinarClubePagamento.tsx`. Alterados: `prisma/schema.prisma`, `src/app/(public)/clube/page.tsx`, `src/app/api/webhooks/mercadopago/route.ts`, `src/app/api/coupons/[id]/redeem/route.ts`, `src/app/api/cron/lembretes-assinatura/route.ts`, `src/app/api/admin/payments/route.ts`, `src/app/api/admin/payments/[id]/route.ts`, `src/app/api/admin/settings/route.ts`, `src/app/admin/configuracoes/page.tsx`.
+
 ## O que ainda falta (próxima etapa)
 
-Depois das duas auditorias (Admin e o resto do site), **o sistema está pronto pra lançar**, com uma pendência de ação sua: **trocar a senha da conta de admin seedada se você já rodou o seed em produção** (ver aviso 🔴 acima) — isso é a única coisa que realmente bloqueia um lançamento seguro. O que ainda fica de fora, sem bloquear o lançamento:
+Com essa atualização, **o BuscaZapp Clube também já cobra e ativa de verdade**, junto com tudo que já estava pronto pra lançar. A única pendência que realmente bloqueia um lançamento seguro continua sendo a mesma: **trocar a senha da conta de admin seedada se você já rodou o seed em produção** (ver aviso 🔴 mais acima). O que ainda fica de fora, sem bloquear o lançamento:
 
 1. **Painel da empresa → Configurações**: tela decorativa — toggles de notificação, "Atualizar senha" e "Excluir conta" não fazem nada ainda.
 2. **Disparo automático das notificações internas** (e-mail/WhatsApp real pra equipe quando entra uma reivindicação nova ou um pagamento fica pendente) — hoje só existe o toggle de preferência salvo; o envio em si ainda não está automatizado.
-3. **Validação de verdade na reivindicação de perfil e no "esqueci minha senha"** (enviar código/link por e-mail/SMS real, em vez de aceitar qualquer código) — precisa de um serviço de envio (ex: Resend, já configurado pra planos — dá pra reaproveitar aqui) ou alguma API de SMS.
+3. **Validação de verdade na reivindicação de perfil e no "esqueci minha senha"** (enviar código/link por e-mail/SMS real, em vez de aceitar qualquer código) — precisa de um serviço de envio (ex: Resend, já configurado — dá pra reaproveitar aqui) ou alguma API de SMS.
 4. **Assinatura paga do BuscaZapp Clube** pro consumidor final (cobrança recorrente) — hoje o botão só avisa "em breve"; dá pra construir depois com o mesmo Mercado Pago já usado pras empresas.
 
 Antes de divulgar publicamente, vale confirmar na Vercel: `MP_ACCESS_TOKEN`, `NEXT_PUBLIC_MP_PUBLIC_KEY`, `SITE_BASE_URL`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CRON_SECRET`, e as variáveis de FTP/`UPLOADS_PUBLIC_URL` — e testar um upload de foto real em produção.

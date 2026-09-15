@@ -20,6 +20,41 @@ function soAData(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+async function enviarLembreteClube(sub: {
+  id: string;
+  valor: unknown;
+  proximaCobranca: Date;
+  user: { email: string; nome: string };
+}) {
+  const link = `${siteBaseUrl()}/clube`;
+  const dataFormatada = sub.proximaCobranca.toLocaleDateString("pt-BR");
+
+  await sendEmail({
+    to: sub.user.email,
+    subject: "Sua assinatura do BuscaZapp Clube vence em breve",
+    html: emailLayout(
+      "Lembrete de vencimento — Clube",
+      `
+      <h1 style="font-size:18px; color:#111827; margin:0 0 12px;">Sua assinatura do Clube vence em breve</h1>
+      <p style="font-size:14px; color:#374151; line-height:1.6;">
+        Olá, ${sub.user.nome}! Sua assinatura do <strong>BuscaZapp Clube</strong> vence em
+        <strong>${dataFormatada}</strong>. Renove agora pra continuar com acesso aos cupons exclusivos de 2x1
+        nos restaurantes parceiros.
+      </p>
+      <div style="text-align:center; margin:22px 0;">
+        <a href="${link}" style="display:inline-block; background:#16a34a; color:#fff; text-decoration:none; font-weight:600; font-size:14px; padding:12px 22px; border-radius:10px;">
+          Renovar agora
+        </a>
+      </div>
+      <p style="font-size:12px; color:#9ca3af;">
+        Se o botão não funcionar, copie e cole este link no navegador:<br/>
+        <a href="${link}" style="color:#16a34a;">${link}</a>
+      </p>`
+    ),
+  });
+  return true;
+}
+
 async function enviarLembrete(sub: {
   id: string;
   planoId: string;
@@ -98,7 +133,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, verificados: subs.length, enviados });
+    const clubSubs = await prisma.clubSubscription.findMany({
+      where: { status: "ativa", proximaCobranca: { gte: agora, lte: limite } },
+      include: { user: { select: { email: true, nome: true } } },
+    });
+
+    let enviadosClube = 0;
+    for (const sub of clubSubs) {
+      const jaEnviadoHoje = sub.lembreteEnviadoEm && soAData(sub.lembreteEnviadoEm) === hoje;
+      if (jaEnviadoHoje) continue;
+
+      const foiEnviado = await enviarLembreteClube(sub).catch((err) => {
+        console.error("[cron lembretes-assinatura] falha ao enviar lembrete do Clube", sub.id, err);
+        return false;
+      });
+      if (foiEnviado) {
+        await prisma.clubSubscription.update({ where: { id: sub.id }, data: { lembreteEnviadoEm: agora } });
+        enviadosClube++;
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      verificados: subs.length + clubSubs.length,
+      enviados: enviados + enviadosClube,
+    });
   } catch (err) {
     console.error("[GET /api/cron/lembretes-assinatura]", err);
     return NextResponse.json({ ok: false }, { status: 500 });

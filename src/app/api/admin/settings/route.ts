@@ -46,6 +46,7 @@ export async function PATCH(request: NextRequest) {
       mostrarCupons?: boolean;
       mostrarEmpresasDestaque?: boolean;
       rodapeTexto?: string;
+      clubeValorMensal?: number;
     } = {};
 
     if (typeof body.nomePlataforma === "string") {
@@ -74,6 +75,12 @@ export async function PATCH(request: NextRequest) {
     if (typeof body.mostrarCupons === "boolean") data.mostrarCupons = body.mostrarCupons;
     if (typeof body.mostrarEmpresasDestaque === "boolean") data.mostrarEmpresasDestaque = body.mostrarEmpresasDestaque;
     if (typeof body.rodapeTexto === "string") data.rodapeTexto = body.rodapeTexto.trim();
+    if (typeof body.clubeValorMensal === "number") {
+      if (!Number.isFinite(body.clubeValorMensal) || body.clubeValorMensal < 0) {
+        return badRequest("Valor da assinatura do Clube inválido.");
+      }
+      data.clubeValorMensal = body.clubeValorMensal;
+    }
 
     const settings = await prisma.platformSettings.update({ where: { id: "singleton" }, data });
     return ok(settings);

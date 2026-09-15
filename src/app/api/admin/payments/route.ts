@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const auth = getAuthUserWithRole(request, ["admin"]);
     if (!auth) return unauthorized("Faça login como administrador.");
 
-    const [pagamentos, boosts, planPurchases, assinaturasAtivas] = await Promise.all([
+    const [pagamentos, boosts, planPurchases, clubPurchases, assinaturasAtivas, clubAssinaturasAtivas] = await Promise.all([
       prisma.payment.findMany({
         orderBy: { data: "desc" },
         include: { company: { select: { nomeFantasia: true, slug: true, whatsapp: true } } },
@@ -42,7 +42,12 @@ export async function GET(request: NextRequest) {
         include: { company: { select: { nomeFantasia: true, slug: true, whatsapp: true } } },
       }),
       prisma.planPurchase.findMany({ orderBy: { createdAt: "desc" } }),
+      prisma.clubPurchase.findMany({
+        orderBy: { createdAt: "desc" },
+        include: { user: { select: { nome: true, email: true } } },
+      }),
       prisma.subscription.aggregate({ where: { status: "ativa" }, _sum: { valor: true } }),
+      prisma.clubSubscription.aggregate({ where: { status: "ativa" }, _sum: { valor: true } }),
     ]);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tipos reais do Prisma só existem depois de `prisma generate`, ver AGENTS.md
@@ -87,13 +92,29 @@ export async function GET(request: NextRequest) {
       status: statusBoostParaPayment(pp.status),
     }));
 
-    const lista = [...listaPagamentos, ...listaBoosts, ...listaPlanos].sort(
+    // Assinaturas/renovações do BuscaZapp Clube (consumidor final) — mesmo
+    // espírito de listaPlanos, mas ligadas a um usuário, não a uma empresa
+    // (por isso companyId/companySlug ficam nulos aqui).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tipos reais do Prisma só existem depois de `prisma generate`, ver AGENTS.md
+    const listaClube = clubPurchases.map((cp: any) => ({
+      id: `clube-${cp.id}`,
+      companyId: null as string | null,
+      companyNome: `${cp.user.nome} (Clube)`,
+      companySlug: null as string | null,
+      companyWhatsapp: cp.user.email,
+      descricao: "Assinatura — BuscaZapp Clube (mensal)",
+      data: cp.createdAt instanceof Date ? cp.createdAt.toISOString() : String(cp.createdAt),
+      valor: Number(cp.valor),
+      status: statusBoostParaPayment(cp.status),
+    }));
+
+    const lista = [...listaPagamentos, ...listaBoosts, ...listaPlanos, ...listaClube].sort(
       (a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()
     );
 
     const receita = lista.filter((p) => p.status === "pago").reduce((acc, p) => acc + p.valor, 0);
     const pendente = lista.filter((p) => p.status === "pendente").reduce((acc, p) => acc + p.valor, 0);
-    const mrr = Number(assinaturasAtivas._sum.valor ?? 0);
+    const mrr = Number(assinaturasAtivas._sum.valor ?? 0) + Number(clubAssinaturasAtivas._sum.valor ?? 0);
 
     return ok({ pagamentos: lista, totais: { receita, pendente, mrr } });
   } catch (err) {
